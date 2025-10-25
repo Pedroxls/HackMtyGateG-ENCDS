@@ -1,23 +1,22 @@
 // src/App.jsx
-// Define rutas principales de la app.
-// Usa DashboardLayout para envolver páginas con Sidebar + Topbar.
-
 import { Routes, Route, Navigate } from 'react-router-dom'
 import DashboardLayout from './layouts/dashboardlayout.jsx'
 import Dashboard from './pages/dashboard.jsx'
 import Reports from './pages/reports.jsx'
 import Forecast from './pages/forecast.jsx'
 import Settings from './pages/settings.jsx'
+import ProductsPage from './pages/ProductsPage.jsx'
+import FlightsPage from './pages/FlightsPage.jsx'
+import EmployeesPage from './pages/EmployeesPage.jsx'
 import ErrorBoundary from './components/error.jsx'
-import { AuthProvider, RequireAuth, useAuth } from './context/authContext.jsx';
-import Login from './pages/login.jsx';
-import Register from './pages/register.jsx';
+import { AuthProvider, RequireAuth, useAuth } from './context/authContext.jsx'
+import Login from './pages/login.jsx'
+import Register from './pages/register.jsx'
 
 // Rutas protegidas: si no hay sesión -> /login
 function ProtectedRoutes() {
   const { user } = useAuth()
   if (!user) return <Navigate to="/login" replace />
-  // Importante: renderizar el layout que a su vez renderiza <Outlet/>
   return <DashboardLayout />
 }
 
@@ -37,6 +36,9 @@ export default function App() {
             <Route path="/reports" element={<Reports />} />
             <Route path="/forecast" element={<Forecast />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/products" element={<ProductsPage />} />
+            <Route path="/flights" element={<FlightsPage />} />
+            <Route path="/employees" element={<EmployeesPage />} />
           </Route>
 
           {/* Fallback */}
@@ -46,4 +48,3 @@ export default function App() {
     </ErrorBoundary>
   )
 }
-
