@@ -1,27 +1,29 @@
-import { Redirect } from 'expo-router';
-import { useAuth } from '../src/store';
+import { useEffect } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
-import { useEffect, useState } from 'react';
+import { useRouter } from 'expo-router';
+import { useAuthStore } from '../src/store/authStore';
+import { COLORS } from '../src/constants/colors';
 
 export default function Index() {
-  const user = useAuth(s => s.user);
-  const loading = useAuth(s => s.loading);
-  const checkAuth = useAuth(s => s.checkAuth);
-  const [ready, setReady] = useState(false);
+  const router = useRouter();
+  const { user, loading } = useAuthStore();
 
   useEffect(() => {
-    checkAuth().then(() => setReady(true));
-  }, []);
+    if (!loading) {
+      if (user) {
+        router.replace('/dashboard');
+      } else {
+        router.replace('/login');
+      }
+    }
+  }, [user, loading]);
 
-  if (!ready || loading) {
-    return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" color="#1e3a8a" />
-      </View>
-    );
-  }
-
-  return user ? <Redirect href="/(tabs)" /> : <Redirect href="/login" />;
+  // Mostrar loading mientras se verifica la autenticación
+  return (
+    <View style={styles.container}>
+      <ActivityIndicator size="large" color={COLORS.primary} />
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -29,6 +31,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.background,
   },
 });
