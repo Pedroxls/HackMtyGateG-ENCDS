@@ -8,10 +8,12 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants/colors';
 
 export default function DashboardScreen() {
+  const router = useRouter();
   const { user, signOut } = useAuthStore();
 
   const handleLogout = () => {
@@ -25,6 +27,8 @@ export default function DashboardScreen() {
           style: 'destructive',
           onPress: async () => {
             await signOut();
+            // Redirigir inmediatamente después de sign out
+            router.replace('/login');
           },
         },
       ]
