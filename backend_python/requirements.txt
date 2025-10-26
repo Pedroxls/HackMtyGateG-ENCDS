@@ -3,9 +3,11 @@ uvicorn
 python-dotenv
 supabase
 pydantic
+openai
 python-multipart
 Pillow
 pytesseract
 python-dateutil
 regex
 google-cloud-vision
+
