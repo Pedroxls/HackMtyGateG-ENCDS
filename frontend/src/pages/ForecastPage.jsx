@@ -1,11 +1,33 @@
-// src/pages/ForecastPage.jsx
-import React, { useState, useEffect } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import {
-  Box, Typography, Button, Paper, Stack, CircularProgress, Chip,
-  TextField, MenuItem
+  Alert,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  Chip,
+  CircularProgress,
+  Grid,
+  MenuItem,
+  Stack,
+  TextField,
+  Typography,
+  alpha
 } from '@mui/material'
+import AutoGraphRoundedIcon from '@mui/icons-material/AutoGraphRounded'
+import TrendingUpRoundedIcon from '@mui/icons-material/TrendingUpRounded'
+import TimelineRoundedIcon from '@mui/icons-material/TimelineRounded'
 import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
+
+const durationOptions = Array.from({ length: 18 * 4 }, (_, idx) => {
+  const hours = Math.floor(idx / 4) + 1
+  const minutes = (idx % 4) * 15
+  const hh = hours.toString().padStart(2, '0')
+  const mm = minutes.toString().padStart(2, '0')
+  return `${hh}:${mm}`
+})
 
 export default function ForecastPage() {
   const [loading, setLoading] = useState(false)
@@ -14,31 +36,22 @@ export default function ForecastPage() {
   const [flightDuration, setFlightDuration] = useState('')
   const [timeOfDay, setTimeOfDay] = useState('')
   const [confirmedPassengers, setConfirmedPassengers] = useState('')
+  const [error, setError] = useState('')
   const navigate = useNavigate()
 
   useEffect(() => {
-    const saved = localStorage.getItem("forecastData")
-    if (saved) {
-      setForecastData(JSON.parse(saved))
-    }
+    const saved = localStorage.getItem('forecastData')
+    if (saved) setForecastData(JSON.parse(saved))
   }, [])
-
-  const durationOptions = []
-  for (let h = 1; h <= 18; h++) {
-    for (let m of [0, 15, 30, 45]) {
-      const hh = h.toString().padStart(2, '0')
-      const mm = m.toString().padStart(2, '0')
-      durationOptions.push(`${hh}:${mm}`)
-    }
-  }
 
   const handlePredict = async () => {
     if (!originCountry || !flightDuration || !timeOfDay || !confirmedPassengers) {
-      alert('Por favor completa todos los campos.')
+      setError('Por favor completa todos los campos antes de generar la predicción.')
       return
     }
-
+    setError('')
     setLoading(true)
+
     try {
       const params = {
         origin_country: originCountry,
@@ -46,123 +59,225 @@ export default function ForecastPage() {
         time_of_day: timeOfDay,
         confirmed_passengers: confirmedPassengers
       }
-      const res = await axios.get(`http://localhost:8000/predict`, { params })
+      const res = await axios.get('http://localhost:8000/predict', { params })
       setForecastData(res.data.predictions || [])
-      localStorage.setItem("forecastData", JSON.stringify(res.data.predictions))
-      localStorage.setItem("flight_report", res.data.report || '')
+      localStorage.setItem('forecastData', JSON.stringify(res.data.predictions))
+      localStorage.setItem('flight_report', res.data.report || '')
     } catch (err) {
       console.error('Error al obtener predicción:', err)
+      setError('No pudimos obtener una predicción. Intenta de nuevo en unos minutos.')
     } finally {
       setLoading(false)
     }
   }
 
-  const getTrendColor = (trend) => {
-    switch (trend) {
-      case 'up': return 'success'
-      case 'down': return 'error'
-      case 'steady': return 'default'
-      default: return 'default'
-    }
-  }
+  const trendCopy = useMemo(
+    () => ({
+      up: { label: 'Tendencia al alza', color: 'success' },
+      down: { label: 'Tendencia a la baja', color: 'error' },
+      steady: { label: 'Tendencia estable', color: 'default' }
+    }),
+    []
+  )
 
   return (
-    <Box sx={{ width: '100%', maxWidth: 920, py: 3 }}>
-      <Typography variant="h5" gutterBottom>
+    <Stack spacing={3}>
+      <Typography variant="h4" sx={{ fontWeight: 700 }}>
         Predicción de Demanda
       </Typography>
 
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} mb={2}>
-        <TextField
-          label="País de Origen"
-          fullWidth
-          value={originCountry}
-          onChange={(e) => setOriginCountry(e.target.value)}
-        />
-        <TextField
-          select
-          label="Duración del Vuelo (HH:MM)"
-          fullWidth
-          value={flightDuration}
-          onChange={(e) => setFlightDuration(e.target.value)}
-        >
-          {durationOptions.map((val, i) => (
-            <MenuItem key={i} value={val}>{val} hrs</MenuItem>
-          ))}
-        </TextField>
-        <TextField
-          select
-          label="Hora del Día"
-          fullWidth
-          value={timeOfDay}
-          onChange={(e) => setTimeOfDay(e.target.value)}
-        >
-          <MenuItem value="mañana">Mañana</MenuItem>
-          <MenuItem value="tarde">Tarde</MenuItem>
-          <MenuItem value="noche">Noche</MenuItem>
-        </TextField>
-        <TextField
-          type="number"
-          label="Pasajeros Confirmados"
-          fullWidth
-          inputProps={{ min: 1, max: 550 }}
-          value={confirmedPassengers}
-          onChange={(e) => {
-            const val = Number(e.target.value)
-            if (val >= 1 && val <= 550) setConfirmedPassengers(val)
-          }}
-        />
-      </Stack>
+      <Grid container spacing={3}>
+        <Grid item xs={12} lg={5}>
+          <Card sx={{ height: '100%' }}>
+            <CardHeader
+              title={
+                <Stack direction="row" alignItems="center" spacing={2}>
+                  <Box
+                    sx={{
+                      width: 44,
+                      height: 44,
+                      borderRadius: 12,
+                      bgcolor: (theme) => alpha(theme.palette.primary.main, 0.12),
+                      color: 'primary.main',
+                      display: 'grid',
+                      placeItems: 'center'
+                    }}
+                  >
+                    <AutoGraphRoundedIcon />
+                  </Box>
+                  <Box>
+                    <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                      Parámetros del vuelo
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Ajusta las variables clave para anticipar consumos a bordo.
+                    </Typography>
+                  </Box>
+                </Stack>
+              }
+            />
+            <CardContent>
+              <Stack spacing={2.5}>
+                <TextField
+                  label="País de origen"
+                  placeholder="Ej. México"
+                  value={originCountry}
+                  onChange={(e) => setOriginCountry(e.target.value)}
+                />
+                <TextField
+                  select
+                  label="Duración del vuelo (HH:MM)"
+                  value={flightDuration}
+                  onChange={(e) => setFlightDuration(e.target.value)}
+                >
+                  {durationOptions.map((val) => (
+                    <MenuItem key={val} value={val}>
+                      {val} hrs
+                    </MenuItem>
+                  ))}
+                </TextField>
+                <TextField
+                  select
+                  label="Momento del día"
+                  value={timeOfDay}
+                  onChange={(e) => setTimeOfDay(e.target.value)}
+                >
+                  <MenuItem value="mañana">Mañana</MenuItem>
+                  <MenuItem value="tarde">Tarde</MenuItem>
+                  <MenuItem value="noche">Noche</MenuItem>
+                </TextField>
+                <TextField
+                  type="number"
+                  label="Pasajeros confirmados"
+                  value={confirmedPassengers}
+                  onChange={(e) => {
+                    const val = Number(e.target.value)
+                    if (val >= 1 && val <= 550) setConfirmedPassengers(val)
+                  }}
+                  inputProps={{ min: 1, max: 550 }}
+                />
 
-      <Button variant="contained" onClick={handlePredict} disabled={loading}>
-        {loading ? <CircularProgress size={24} color="inherit" /> : 'Generar Predicción'}
-      </Button>
+                {error && (
+                  <Alert severity="warning" onClose={() => setError('')}>
+                    {error}
+                  </Alert>
+                )}
 
-      {forecastData.length > 0 && (
-        <>
-          <Box mt={3}>
-            {forecastData.map((item, i) => (
-              <Paper
-                sx={{
-                  p: 2,
-                  mb: 2,
-                  '&:hover': {
-                    border: '4px solid #00dc8fff'
-                  }
-                }}
-                key={i}
-              >
+                <Button
+                  variant="contained"
+                  size="large"
+                  onClick={handlePredict}
+                  disabled={loading}
+                >
+                  {loading ? <CircularProgress size={24} color="inherit" /> : 'Generar predicción'}
+                </Button>
+              </Stack>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} lg={7}>
+          <Card sx={{ height: '100%' }}>
+            <CardHeader
+              title={
                 <Stack direction="row" justifyContent="space-between" alignItems="center">
                   <Box>
-                    <Typography fontWeight={600}>{item.product}</Typography>
-                    <Typography variant="body2">Demanda Estimada: {item.predicted_demand}</Typography>
+                    <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                      Resultado del modelo
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Lista priorizada de productos con estimación de consumo y tendencia proyectada.
+                    </Typography>
                   </Box>
-                  <Chip
-                    label={
-                      item.trend === 'up'
-                        ? '↑ Tendencia al alza'
-                        : item.trend === 'down'
-                          ? '↓ Tendencia a la baja'
-                          : '→ Tendencia estable'
-                    }
-                    color={getTrendColor(item.trend)}
-                    variant="outlined"
-                  />
+                  {!!forecastData.length && (
+                    <Chip
+                      label={`${forecastData.length} productos sugeridos`}
+                      color="primary"
+                      variant="outlined"
+                    />
+                  )}
                 </Stack>
-              </Paper>
-            ))}
-          </Box>
+              }
+            />
+            <CardContent>
+              {forecastData.length ? (
+                <Stack spacing={2}>
+                  {forecastData.map((item, index) => {
+                    const trend = trendCopy[item.trend] || trendCopy.steady
+                    return (
+                      <Stack
+                        key={index}
+                        direction={{ xs: 'column', sm: 'row' }}
+                        spacing={2}
+                        alignItems={{ xs: 'flex-start', sm: 'center' }}
+                        justifyContent="space-between"
+                        sx={{
+                          p: 2,
+                          borderRadius: 3,
+                          border: '1px solid',
+                          borderColor: (theme) => alpha(theme.palette.primary.main, 0.12),
+                          backgroundColor: (theme) => alpha(theme.palette.primary.main, 0.03)
+                        }}
+                      >
+                        <Stack spacing={0.5}>
+                          <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                            {item.product}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            Demanda estimada: {item.predicted_demand} unidades
+                          </Typography>
+                        </Stack>
+                        <Chip
+                          icon={<TrendingUpRoundedIcon />}
+                          label={trend.label}
+                          color={trend.color}
+                          variant={trend.color === 'default' ? 'outlined' : 'filled'}
+                          sx={{ minWidth: 180 }}
+                        />
+                      </Stack>
+                    )
+                  })}
 
-          <Button
-            variant="contained"
-            color="secondary"
-            sx={{ mt: 2 }}
-            onClick={() => navigate('/reports')}
-          >
-            Ver Reporte
-          </Button>
-        </>
-      )}
+                  <Button
+                    variant="outlined"
+                    color="secondary"
+                    size="large"
+                    onClick={() => navigate('/reports')}
+                    sx={{ alignSelf: { xs: 'stretch', sm: 'flex-end' } }}
+                    startIcon={<TimelineRoundedIcon />}
+                  >
+                    Ver reporte ejecutivo
+                  </Button>
+                </Stack>
+              ) : (
+                <EmptyState />
+              )}
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+    </Stack>
+  )
+}
+
+function EmptyState() {
+  return (
+    <Box
+      sx={{
+        border: '1px dashed',
+        borderColor: (theme) => alpha(theme.palette.primary.main, 0.2),
+        borderRadius: 4,
+        p: 4,
+        textAlign: 'center',
+        color: 'text.secondary'
+      }}
+    >
+      <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
+        Aún no has generado una predicción
+      </Typography>
+      <Typography variant="body2">
+        Completa los parámetros del vuelo para anticipar el consumo a bordo y generar un reporte.
+      </Typography>
     </Box>
   )
 }

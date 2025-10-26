@@ -1,5 +1,3 @@
-// src/layouts/DashboardLayout.jsx
-
 import { Outlet, useLocation } from 'react-router-dom'
 import { useMemo } from 'react'
 import {
@@ -9,7 +7,9 @@ import {
   Toolbar,
   Typography,
   Drawer,
-  Divider,
+  Stack,
+  Avatar,
+  Divider
 } from '@mui/material'
 import DashboardRoundedIcon from '@mui/icons-material/DashboardRounded'
 import AssessmentRoundedIcon from '@mui/icons-material/AssessmentRounded'
@@ -19,12 +19,13 @@ import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded'
 import GroupsRoundedIcon from '@mui/icons-material/GroupsRounded'
 import Sidebar from '../components/sidebar.jsx'
 import Topbar from '../components/topbar.jsx'
-import React from 'react'
+import { useAuth } from '../context/authContext.jsx'
 
-const drawerWidth = 240
+const drawerWidth = 280
 
-export default function DashboardLayout({ children }) {
+export default function DashboardLayout() {
   const { pathname } = useLocation()
+  const { user } = useAuth()
 
   const navItems = useMemo(
     () => [
@@ -39,114 +40,128 @@ export default function DashboardLayout({ children }) {
   )
 
   return (
-    <Box
-      sx={{
-        minHeight: '100vh',
-        width: '100%',
-        position: 'relative',
-        overflow: 'visible',
-        background: `
-          radial-gradient(circle at 20% 20%, rgba(63,81,181,0.25), transparent 45%),
-          radial-gradient(circle at 80% 80%, rgba(0,150,136,0.20), transparent 45%),
-          linear-gradient(180deg,#ffffff 0%, #e8f1f8 100%)
-        `,
-        '&::before': {
-          content: '""',
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          height: '100%',
-          background: `
-            radial-gradient(circle at 60% 30%, rgba(33,150,243,0.08), transparent 50%),
-            radial-gradient(circle at 20% 70%, rgba(0,200,83,0.08), transparent 50%)
-          `,
-          pointerEvents: 'none'
-        }
-      }}
-    >
-      {/* contenedor con zIndex superior donde va el layout real */}
-      <Box sx={{ position: 'relative', zIndex: 2, ml: { sm: `${drawerWidth}px` } }}>
-        <CssBaseline />
+    <Box sx={{ display: 'flex', minHeight: '100vh', position: 'relative', width: '100%' }}>
+      <CssBaseline />
 
-        <AppBar
-          position="fixed"
-          sx={{
-            width: `calc(100% - ${drawerWidth}px)`,
-            ml: `${drawerWidth}px`,
-            bgcolor: '#fff',
-            color: '#111',
-            boxShadow: 'none',
-            borderBottom: '1px solid #e5e7eb'
-          }}
-        >
-          <Topbar title={getTitleFromPath(pathname)} />
-        </AppBar>
-
-        <Drawer
-          variant="permanent"
-          sx={{
+      <Drawer
+        variant="permanent"
+        sx={{
+          width: drawerWidth,
+          flexShrink: 0,
+          '& .MuiDrawer-paper': {
             width: drawerWidth,
-            flexShrink: 0,
-            '& .MuiDrawer-paper': {
-              width: drawerWidth,
-              boxSizing: 'border-box',
-              borderRight: '1px solid #e5e7eb'
-            },
-          }}
-          open
-        >
-          <Toolbar sx={{ px: 2 }}>
-            <Typography variant="subtitle2" color="text.secondary" sx={{ letterSpacing: 1 }}>
-              SMART INTELLIGENCE
-            </Typography>
-          </Toolbar>
-          <Divider />
-          <Sidebar items={navItems} />
-        </Drawer>
+            boxSizing: 'border-box',
+            padding: 3,
+            borderRadius: 0,
+            borderRight: '1px solid rgba(15, 23, 42, 0.08)',
+            background: 'linear-gradient(180deg, #111827 0%, #1f2937 100%)',
+            color: '#e2e8f0',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 24
+          }
+        }}
+        open
+      >
+        <Stack spacing={3}>
+          <Stack direction="row" spacing={2} alignItems="center">
+            <Box
+              sx={{
+                width: 44,
+                height: 44,
+                borderRadius: 12,
+                background:
+                  'linear-gradient(135deg, rgba(59,130,246,0.85) 0%, rgba(14,165,233,0.75) 100%)',
+                display: 'grid',
+                placeItems: 'center',
+                color: '#fff',
+                fontWeight: 700,
+                letterSpacing: '0.06em'
+              }}
+            >
+              GI
+            </Box>
+            <Box>
+              <Typography variant="subtitle1" sx={{ color: '#fff', fontWeight: 700 }}>
+                Gate Intelligence
+              </Typography>
+              <Typography variant="caption" sx={{ color: 'rgba(226,232,240,0.65)' }}>
+                Control Center
+              </Typography>
+            </Box>
+          </Stack>
 
-        <Box component="main" sx={{ flexGrow: 1,px :20, py: 4 }}>
-          <Toolbar />
-          <Box sx={{ maxWidth: '1200px' }}>
-            <Outlet />
-          </Box>
-        </Box>
-      </Box>
+          <Stack direction="row" spacing={2} alignItems="center" sx={{ px: 1.5, py: 1.25, borderRadius: 2, backgroundColor: 'rgba(15,23,42,0.45)' }}>
+            <Avatar
+              sx={{
+                width: 44,
+                height: 44,
+                background:
+                  'linear-gradient(135deg, rgba(96,165,250,0.6) 0%, rgba(59,130,246,0.8) 100%)'
+              }}
+            >
+              {(user?.name || user?.email || 'U').substring(0, 2).toUpperCase()}
+            </Avatar>
+            <Box>
+              <Typography variant="body1" sx={{ color: '#fff', fontWeight: 600 }}>
+                {user?.name || user?.email || 'Operador'}
+              </Typography>
+              <Typography variant="caption" sx={{ color: 'rgba(226,232,240,0.6)' }}>
+                Gestión y análisis
+              </Typography>
+            </Box>
+          </Stack>
+        </Stack>
 
-      {/* Asegura que el sidebar/drawer esté por encima del fondo */}
-      <Box component="nav" sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 }, zIndex: 1300 }}>
-        <Drawer
-          variant="permanent"
-          sx={{
-            width: drawerWidth,
-            flexShrink: 0,
-            '& .MuiDrawer-paper': {
-              width: drawerWidth,
-              boxSizing: 'border-box',
-              borderRight: '1px solid #e5e7eb'
-            },
-          }}
-          open
-        >
-          <Toolbar sx={{ px: 2 }}>
-            <Typography variant="subtitle2" color="text.secondary" sx={{ letterSpacing: 1 }}>
-              SMART INTELLIGENCE
-            </Typography>
-          </Toolbar>
-          <Divider />
-          <Sidebar items={navItems} />
-        </Drawer>
+        <Sidebar items={navItems} />
+
+        <Box sx={{ flexGrow: 1 }} />
+
+        <Divider sx={{ borderColor: 'rgba(226,232,240,0.08)' }} />
+        <Typography variant="caption" sx={{ color: 'rgba(226,232,240,0.6)' }}>
+          © {new Date().getFullYear()} Gate Intelligence · Optimización de Supply Chain
+        </Typography>
+      </Drawer>
+
+      <AppBar
+        position="fixed"
+        elevation={0}
+        sx={{
+          width: `calc(100% - ${drawerWidth}px)`,
+          left: `${drawerWidth}px`,
+          background: 'rgba(255,255,255,0.85)',
+          color: 'text.primary',
+          backdropFilter: 'blur(18px)',
+          borderBottom: '1px solid rgba(15,23,42,0.08)',
+          zIndex: (theme) => theme.zIndex.drawer + 1
+        }}
+      >
+        <Topbar title={getTitleFromPath(pathname)} />
+      </AppBar>
+
+      <Box
+        component="main"
+        sx={{
+          flexGrow: 1,
+          pt: '104px',
+          pb: 6,
+          px: { xs: 4, md: 6, lg: 8 },
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 4
+        }}
+      >
+        <Outlet />
       </Box>
     </Box>
   )
 }
 
 function getTitleFromPath(path) {
-  if (path.startsWith('/forecast')) return 'Predicción'
-  if (path.startsWith('/reports')) return 'Reportes'
-  if (path.startsWith('/settings')) return 'Ajustes'
-  if (path.startsWith('/products')) return 'Productos'
-  if (path.startsWith('/flights')) return 'Vuelos'
-  if (path.startsWith('/employees')) return 'Empleados'
-  return 'Dashboard'
+  if (path.startsWith('/forecast')) return 'Predicción de Demanda'
+  if (path.startsWith('/reports')) return 'Reportes Ejecutivos'
+  if (path.startsWith('/settings')) return 'Configuración'
+  if (path.startsWith('/products')) return 'Catálogo de Productos'
+  if (path.startsWith('/employees')) return 'Talento & Equipo'
+  return 'Visión General'
 }

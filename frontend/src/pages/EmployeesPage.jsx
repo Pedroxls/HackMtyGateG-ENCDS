@@ -1,12 +1,26 @@
-// src/pages/EmployeesPage.jsx
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import {
-  Box, Button, Typography, Dialog, DialogTitle, DialogContent, Snackbar,
-  Alert, IconButton, Stack, Paper, CircularProgress
+  Alert,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  Chip,
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  Snackbar,
+  Stack,
+  Typography,
+  alpha
 } from '@mui/material'
-import AddIcon from '@mui/icons-material/Add'
-import EditIcon from '@mui/icons-material/Edit'
-import DeleteIcon from '@mui/icons-material/Delete'
+import { DataGrid, GridActionsCellItem } from '@mui/x-data-grid'
+import AddRoundedIcon from '@mui/icons-material/AddRounded'
+import EditRoundedIcon from '@mui/icons-material/EditRounded'
+import DeleteRoundedIcon from '@mui/icons-material/DeleteRounded'
+import WorkOutlineRoundedIcon from '@mui/icons-material/WorkOutlineRounded'
+import EmailRoundedIcon from '@mui/icons-material/EmailRounded'
 import EmployeeForm from '../components/EmployeeForm'
 import axios from 'axios'
 
@@ -19,92 +33,242 @@ export default function EmployeesPage() {
   const [editEmployee, setEditEmployee] = useState(null)
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' })
 
-  const fetchEmployees = async () => {
+  const fetchEmployees = useCallback(async () => {
     try {
       const res = await axios.get(API_URL)
-      setEmployees(res.data)
-    } catch {
-      setSnackbar({ open: true, message: 'Error al cargar empleados', severity: 'error' })
+      const items = Array.isArray(res.data) ? res.data : []
+      setEmployees(items)
+    } catch (error) {
+      console.error(error)
+      setSnackbar({
+        open: true,
+        message: 'No fue posible cargar el equipo',
+        severity: 'error'
+      })
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
-  useEffect(() => { fetchEmployees() }, [])
+  useEffect(() => {
+    fetchEmployees()
+  }, [fetchEmployees])
 
   const handleSave = async (data) => {
     try {
-      if (editEmployee) await axios.put(`${API_URL}/${editEmployee.id}`, data)
-      else await axios.post(API_URL, data)
-      setSnackbar({ open: true, message: 'Guardado con éxito', severity: 'success' })
+      const payload = { ...data }
+
+      if (!payload.password) {
+        delete payload.password
+      }
+
+      if (editEmployee?.id) {
+        await axios.put(`${API_URL}/${editEmployee.id}`, payload)
+        setSnackbar({ open: true, message: 'Empleado actualizado', severity: 'success' })
+      } else {
+        await axios.post(API_URL, payload)
+        setSnackbar({ open: true, message: 'Empleado creado', severity: 'success' })
+      }
+      setLoading(true)
       fetchEmployees()
       setOpenDialog(false)
       setEditEmployee(null)
-    } catch {
-      setSnackbar({ open: true, message: 'Error al guardar', severity: 'error' })
+    } catch (error) {
+      console.error(error)
+      setSnackbar({ open: true, message: 'No se pudo guardar el empleado', severity: 'error' })
     }
   }
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('¿Eliminar empleado?')) return
-    try {
-      await axios.delete(`${API_URL}/${id}`)
-      setSnackbar({ open: true, message: 'Empleado eliminado', severity: 'info' })
-      fetchEmployees()
-    } catch {
-      setSnackbar({ open: true, message: 'Error al eliminar', severity: 'error' })
-    }
-  }
+  const handleDelete = useCallback(
+    async (id) => {
+      if (!id || String(id).startsWith('emp-')) {
+        setSnackbar({ open: true, message: 'No se pudo identificar al colaborador', severity: 'error' })
+        return
+      }
+      if (!window.confirm('¿Eliminar este colaborador?')) return
+      try {
+        await axios.delete(`${API_URL}/${id}`)
+        setSnackbar({ open: true, message: 'Empleado eliminado', severity: 'info' })
+        setLoading(true)
+        fetchEmployees()
+      } catch (error) {
+        console.error(error)
+        setSnackbar({ open: true, message: 'No se pudo eliminar', severity: 'error' })
+      }
+    },
+    [fetchEmployees]
+  )
+
+  const rows = useMemo(
+    () =>
+      employees.map((employee, index) => ({
+        id: employee.id ?? `emp-${index}`,
+        _apiId: employee.id ?? null,
+        ...employee
+      })),
+    [employees]
+  )
+
+  const columns = useMemo(
+    () => [
+      {
+        field: 'name',
+        headerName: 'Nombre',
+        flex: 1.3,
+        minWidth: 200,
+        renderCell: (params) => (
+          <Stack spacing={0.4}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+              {params.value}
+            </Typography>
+            <Stack direction="row" spacing={1} alignItems="center">
+              <EmailRoundedIcon fontSize="small" sx={{ color: 'text.disabled' }} />
+              <Typography variant="caption" color="text.secondary">
+                {params.row.email}
+              </Typography>
+            </Stack>
+          </Stack>
+        )
+      },
+      {
+        field: 'role',
+        headerName: 'Rol',
+        flex: 0.9,
+        minWidth: 160,
+        renderCell: (params) => (
+          <Chip
+            label={params.value || 'Sin rol'}
+            size="small"
+            sx={{
+              bgcolor: (theme) => alpha(theme.palette.secondary.main, 0.08),
+              color: 'secondary.main',
+              fontWeight: 600
+            }}
+            icon={<WorkOutlineRoundedIcon fontSize="small" />}
+          />
+        )
+      },
+      {
+        field: 'position',
+        headerName: 'Especialidad',
+        flex: 1,
+        minWidth: 160,
+        valueGetter: (params) => {
+          const row = params?.row || params;
+          return row?.position || row?.role || '';
+        }
+      },
+      {
+        field: 'actions',
+        type: 'actions',
+        headerName: '',
+        width: 110,
+        getActions: (params) => [
+          <GridActionsCellItem
+            icon={<EditRoundedIcon />}
+            label="Editar"
+            onClick={() => {
+              const original = employees.find((employee) => employee.id === params.row._apiId)
+              setEditEmployee(original || params.row)
+              setOpenDialog(true)
+            }}
+            showInMenu
+          />,
+          <GridActionsCellItem
+            icon={<DeleteRoundedIcon />}
+            label="Eliminar"
+            onClick={() => handleDelete(params.row._apiId ?? params.row.id)}
+            showInMenu
+          />
+        ]
+      }
+    ],
+    [handleDelete, employees]
+  )
 
   return (
-    <Box sx={{ width: '100%', maxWidth: 920, py: 3 }}>
-      <Typography variant="h5" gutterBottom>Empleados</Typography>
-      <Button startIcon={<AddIcon />} variant="contained" onClick={() => setOpenDialog(true)} sx={{ mb: 2 }}>
-        Añadir empleado
-      </Button>
+    <Stack spacing={3}>
+      <Typography variant="h4" sx={{ fontWeight: 700 }}>
+        Talento & Equipo
+      </Typography>
 
-      {loading ? (
-        <Box mt={4} textAlign="center"><CircularProgress /></Box>
-      ) : (
-        employees.length === 0 ? (
-          <Typography>No hay empleados.</Typography>
-        ) : (
-          employees.map(e => (
-            <Paper 
-              key={e.id} 
-              sx={{ 
-                p: 1.5, 
-                mb: 2,
-                '&:hover': {
-                  border: '4px solid #00dc8fff'
-                }
-              }}>
-              <Stack direction="row" justifyContent="space-between">
-                <Box>
-                  <Typography fontWeight={600}>{e.name}</Typography>
-                  <Typography variant="body2">Rol: {e.role}</Typography>
-                  <Typography variant="body2">Email: {e.email}</Typography>
-                </Box>
-                <Box>
-                  <IconButton onClick={() => { setEditEmployee(e); setOpenDialog(true) }}><EditIcon /></IconButton>
-                  <IconButton onClick={() => handleDelete(e.id)}><DeleteIcon /></IconButton>
-                </Box>
-              </Stack>
-            </Paper>
-          ))
-        )
-      )}
+      <Card>
+        <CardHeader
+          title={
+            <Stack direction="row" justifyContent="space-between" alignItems="center">
+              <Box>
+                <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                  Colaboradores activos
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Gestiona roles, capacidades y disponibilidad de tu equipo operativo.
+                </Typography>
+              </Box>
+              <Button
+                variant="contained"
+                startIcon={<AddRoundedIcon />}
+                onClick={() => setOpenDialog(true)}
+                size="large"
+              >
+                Nuevo colaborador
+              </Button>
+            </Stack>
+          }
+        />
+        <CardContent>
+          <DataGrid
+            rows={rows}
+            columns={columns}
+            loading={loading}
+            autoHeight
+            disableRowSelectionOnClick
+            pageSizeOptions={[5, 10, 25]}
+            sx={{
+              '& .MuiDataGrid-columnHeaders': {
+                backgroundColor: (theme) => alpha(theme.palette.secondary.main, 0.06)
+              },
+              '& .MuiDataGrid-row:hover': {
+                backgroundColor: (theme) => alpha(theme.palette.secondary.main, 0.06)
+              }
+            }}
+          />
+        </CardContent>
+      </Card>
 
-      <Dialog open={openDialog} onClose={() => { setOpenDialog(false); setEditEmployee(null) }} maxWidth="sm" fullWidth>
-        <DialogTitle>{editEmployee ? 'Editar empleado' : 'Nuevo empleado'}</DialogTitle>
-        <DialogContent>
-          <EmployeeForm employee={editEmployee} onSubmit={handleSave} onCancel={() => setOpenDialog(false)} />
+      <Dialog
+        maxWidth="sm"
+        fullWidth
+        open={openDialog}
+        onClose={() => {
+          setOpenDialog(false)
+          setEditEmployee(null)
+        }}
+      >
+        <DialogTitle>{editEmployee ? 'Editar colaborador' : 'Nuevo colaborador'}</DialogTitle>
+        <DialogContent sx={{ pt: 1 }}>
+          <EmployeeForm
+            employee={editEmployee}
+            onSubmit={handleSave}
+            onCancel={() => {
+              setOpenDialog(false)
+              setEditEmployee(null)
+            }}
+          />
         </DialogContent>
       </Dialog>
 
-      <Snackbar open={snackbar.open} autoHideDuration={3000} onClose={() => setSnackbar({ ...snackbar, open: false })}>
-        <Alert severity={snackbar.severity}>{snackbar.message}</Alert>
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={3200}
+        onClose={() => setSnackbar((state) => ({ ...state, open: false }))}
+      >
+        <Alert
+          severity={snackbar.severity}
+          onClose={() => setSnackbar((state) => ({ ...state, open: false }))}
+        >
+          {snackbar.message}
+        </Alert>
       </Snackbar>
-    </Box>
+    </Stack>
   )
 }

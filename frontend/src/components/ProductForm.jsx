@@ -34,15 +34,15 @@ const ProductForm = ({ product, onSubmit, onCancel }) => {
 
   return (
     <form onSubmit={handleSubmit}>
-      <Stack spacing={2} sx={{ mt: 1 }}>
-        <TextField label="Nombre" name="name" value={form.name} onChange={handleChange} required />
-        <TextField label="SKU" name="sku" value={form.sku} onChange={handleChange} required />
-        <TextField label="Categoría" name="category" value={form.category} onChange={handleChange} required />
-        <TextField label="Precio" name="price" value={form.price} onChange={handleChange} type="number" />
-        <TextField label="Stock" name="stock" value={form.stock} onChange={handleChange} type="number" />
-        <TextField label="Fecha de vencimiento" name="expiration_days" value={form.expiration_days} onChange={handleChange} placeholder="YYYY-MM-DD" />
+      <Stack spacing={2} sx={{ mt: 1, width: '100%' }}>
+        <TextField fullWidth label="Nombre" name="name" value={form.name} onChange={handleChange} required />
+        <TextField fullWidth label="SKU" name="sku" value={form.sku} onChange={handleChange} required />
+        <TextField fullWidth label="Categoría" name="category" value={form.category} onChange={handleChange} required />
+        <TextField fullWidth label="Precio" name="price" value={form.price} onChange={handleChange} type="number" />
+        <TextField fullWidth label="Stock" name="stock" value={form.stock} onChange={handleChange} type="number" />
+        <TextField fullWidth label="Fecha de vencimiento" name="expiration_days" value={form.expiration_days} onChange={handleChange} placeholder="YYYY-MM-DD" />
       </Stack>
-      <Box mt={3} display="flex" justifyContent="flex-end" gap={2}>
+      <Box mt={3} display="flex" justifyContent="flex-end" gap={2} width="100%">
         <Button onClick={onCancel}>Cancelar</Button>
         <Button type="submit" variant="contained">Guardar</Button>
       </Box>
