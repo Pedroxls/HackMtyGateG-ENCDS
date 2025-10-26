@@ -5,3 +5,6 @@ supabase
 pydantic
 openai
 python-dotenv
+react-simple-maps --legacy-peer-deps
+d3-scale
+@mui/material @emotion/react @emotion/styled
