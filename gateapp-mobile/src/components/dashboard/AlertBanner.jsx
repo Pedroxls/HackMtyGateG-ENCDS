@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 
 export default function AlertBanner({ alerts = [] }) {
@@ -8,9 +9,12 @@ export default function AlertBanner({ alerts = [] }) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerText}>
-          🔔 ALERTAS ACTIVAS ({alerts.length})
-        </Text>
+        <View style={styles.headerContent}>
+          <Ionicons name="notifications" size={18} color={COLORS.text} />
+          <Text style={styles.headerText}>
+            ALERTAS ACTIVAS ({alerts.length})
+          </Text>
+        </View>
       </View>
       <ScrollView
         horizontal
@@ -29,13 +33,13 @@ function AlertItem({ alert }) {
   const getAlertStyle = (type) => {
     switch (type) {
       case 'urgent':
-        return { backgroundColor: COLORS.error, icon: '⚠️' };
+        return { backgroundColor: COLORS.error, icon: 'alert-circle', iconColor: COLORS.error };
       case 'warning':
-        return { backgroundColor: COLORS.warning, icon: '⚡' };
+        return { backgroundColor: COLORS.warning, icon: 'warning', iconColor: COLORS.warning };
       case 'info':
-        return { backgroundColor: COLORS.info, icon: 'ℹ️' };
+        return { backgroundColor: COLORS.info, icon: 'information-circle', iconColor: COLORS.info };
       default:
-        return { backgroundColor: COLORS.neutral, icon: '📌' };
+        return { backgroundColor: COLORS.neutral, icon: 'notifications', iconColor: COLORS.neutral };
     }
   };
 
@@ -46,7 +50,7 @@ function AlertItem({ alert }) {
       style={[styles.alertCard, { borderLeftColor: alertStyle.backgroundColor }]}
       onPress={alert.onPress}
     >
-      <Text style={styles.alertIcon}>{alertStyle.icon}</Text>
+      <Ionicons name={alertStyle.icon} size={24} color={alertStyle.iconColor} style={styles.alertIcon} />
       <View style={styles.alertContent}>
         <Text style={styles.alertTitle} numberOfLines={1}>
           {alert.title}
@@ -62,13 +66,18 @@ function AlertItem({ alert }) {
 const styles = StyleSheet.create({
   container: {
     backgroundColor: COLORS.background,
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
   },
   header: {
     paddingHorizontal: 16,
     marginBottom: 8,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   headerText: {
     fontSize: 14,
@@ -90,7 +99,6 @@ const styles = StyleSheet.create({
     borderLeftWidth: 4,
   },
   alertIcon: {
-    fontSize: 24,
     marginRight: 12,
   },
   alertContent: {

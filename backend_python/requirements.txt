@@ -4,4 +4,10 @@ python-dotenv
 supabase
 pydantic
 openai
-python-dotenv
+python-multipart
+Pillow
+pytesseract
+python-dateutil
+regex
+google-cloud-vision
+

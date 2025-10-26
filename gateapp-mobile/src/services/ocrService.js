@@ -3,10 +3,10 @@
  * Se comunica con el backend Python FastAPI
  */
 
-// TODO: Reemplazar con la URL real de tu backend
-const API_BASE_URL = __DEV__
-  ? 'http://localhost:8000/api'  // Desarrollo local
-  : 'https://your-production-api.com/api';  // Producción
+import { EXPO_PUBLIC_API_BASE_URL } from '@env';
+
+// Usar variable de entorno o fallback a localhost
+const API_BASE_URL = EXPO_PUBLIC_API_BASE_URL || 'http://localhost:8000';
 
 /**
  * Procesa una imagen para extraer fecha de caducidad usando OCR
@@ -16,6 +16,9 @@ const API_BASE_URL = __DEV__
  */
 export async function processExpiryDateOCR(imageUri, productId = null) {
   try {
+    console.log('🔍 [OCR] Iniciando procesamiento...');
+    console.log('📡 [OCR] Backend URL:', API_BASE_URL);
+
     // Preparar FormData con la imagen
     const formData = new FormData();
 
@@ -35,7 +38,8 @@ export async function processExpiryDateOCR(imageUri, productId = null) {
     }
 
     // Llamar al backend
-    const response = await fetch(`${API_BASE_URL}/vision/expiry-date`, {
+    console.log('📤 [OCR] Enviando imagen al backend...');
+    const response = await fetch(`${API_BASE_URL}/api/vision/expiry-date`, {
       method: 'POST',
       headers: {
         'Content-Type': 'multipart/form-data',
@@ -43,18 +47,24 @@ export async function processExpiryDateOCR(imageUri, productId = null) {
       body: formData,
     });
 
+    console.log('📥 [OCR] Respuesta recibida:', response.status);
+
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ [OCR] Error del servidor:', errorText);
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
     const data = await response.json();
+    console.log('✅ [OCR] Datos procesados:', data);
 
     return {
       success: true,
       ...data,
     };
   } catch (error) {
-    console.error('OCR Error:', error);
+    console.error('❌ [OCR] Error completo:', error);
+    console.error('❌ [OCR] Mensaje:', error.message);
     return {
       success: false,
       error: error.message,
@@ -98,7 +108,7 @@ export async function extractLotFromImage(imageUri) {
       type: type,
     });
 
-    const response = await fetch(`${API_BASE_URL}/vision/lot-number`, {
+    const response = await fetch(`${API_BASE_URL}/api/vision/lot-number`, {
       method: 'POST',
       headers: {
         'Content-Type': 'multipart/form-data',

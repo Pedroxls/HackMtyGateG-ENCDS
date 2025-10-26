@@ -21,11 +21,11 @@ const TABS = [
     route: '/drawers',
   },
   {
-    name: 'scanner',
-    label: 'Scanner',
-    icon: 'scan',
-    iconOutline: 'scan-outline',
-    route: '/scanner',
+    name: 'alerts',
+    label: 'Alertas',
+    icon: 'notifications',
+    iconOutline: 'notifications-outline',
+    route: '/alerts',
   },
   {
     name: 'productivity',
