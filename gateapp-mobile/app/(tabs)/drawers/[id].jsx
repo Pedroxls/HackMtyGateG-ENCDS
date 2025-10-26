@@ -120,6 +120,7 @@ export default function DrawerDetailScreen() {
             ? `${data.estimated_build_time_min} min`
             : 'N/A',
         },
+        drawerNumber: data.drawer_number, // Guardar el número de drawer
         products: data.drawer_content?.map((content) => ({
           id: content.products.id,
           name: content.products.name,
@@ -187,6 +188,11 @@ export default function DrawerDetailScreen() {
   const progress = totalRequired > 0 ? (totalScanned / totalRequired) * 100 : 0;
 
   const currentProduct = productList.find((p) => p.scanned < p.required);
+
+  // Generar ID legible para mostrar
+  const displayDrawerId = drawerData.drawerNumber
+    ? `D-${String(drawerData.drawerNumber).padStart(3, '0')}`
+    : drawer.id.slice(0, 8);
 
   const handleStartAssembly = () => {
     setTimerStarted(true);
@@ -353,7 +359,7 @@ export default function DrawerDetailScreen() {
           <Ionicons name="chevron-back" size={24} color={COLORS.primary} />
         </TouchableOpacity>
         <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>DRAWER {drawer.id}</Text>
+          <Text style={styles.headerTitle}>DRAWER {displayDrawerId}</Text>
           {timerStarted && (
             <View style={styles.timerBadge}>
               <Ionicons name="time" size={14} color={COLORS.textInverse} />

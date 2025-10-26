@@ -78,17 +78,36 @@ export default function DrawersScreen() {
 
   const loadDrawers = async () => {
     try {
+      console.log('🚀 [DrawersScreen] Iniciando carga de drawers...');
       setLoading(true);
       const { data, error } = await getActiveDrawers();
 
+      console.log('📊 [DrawersScreen] Respuesta recibida:', {
+        success: !error,
+        dataLength: data?.length,
+        error: error,
+      });
+
       if (error) {
-        console.error('Error loading drawers:', error);
+        console.error('❌ [DrawersScreen] Error loading drawers:', error);
         Alert.alert('Error', 'No se pudieron cargar los cajones');
         return;
       }
 
+      if (!data || data.length === 0) {
+        console.warn('⚠️ [DrawersScreen] No hay drawers en la respuesta');
+      }
+
       // Transformar datos de Supabase al formato de la app
-      const transformedDrawers = data?.map((drawer) => {
+      console.log('🔄 [DrawersScreen] Transformando datos...');
+      const transformedDrawers = data?.map((drawer, index) => {
+        console.log(`  Drawer ${index + 1}:`, {
+          id: drawer.id,
+          flight: drawer.flights?.flight_number,
+          content_items: drawer.drawer_content?.length,
+          scanned: drawer.scanned_products?.length,
+        });
+
         const totalItems = drawer.drawer_content?.reduce(
           (sum, content) => sum + content.quantity,
           0
@@ -104,8 +123,11 @@ export default function DrawersScreen() {
           status = 'in_progress';
         }
 
-        return {
-          id: drawer.id,
+        const transformed = {
+          id: drawer.id, // UUID interno para navegación
+          displayId: drawer.drawer_number
+            ? `D-${String(drawer.drawer_number).padStart(3, '0')}`
+            : `D-${drawer.id.slice(0, 8)}`, // Fallback si no hay drawer_number
           flightNumber: drawer.flights?.flight_number || 'N/A',
           destination: drawer.flights?.route?.split('-')[1] || 'N/A',
           flightClass: drawer.flights?.flight_type || 'Economy',
@@ -117,11 +139,15 @@ export default function DrawersScreen() {
             ? `${drawer.estimated_build_time_min} min`
             : undefined,
         };
+
+        console.log(`  → Transformado:`, transformed);
+        return transformed;
       }) || [];
 
+      console.log('✅ [DrawersScreen] Drawers transformados:', transformedDrawers.length);
       setDrawers(transformedDrawers);
     } catch (error) {
-      console.error('Error in loadDrawers:', error);
+      console.error('❌ [DrawersScreen] Error in loadDrawers:', error);
       Alert.alert('Error', 'Error cargando cajones');
     } finally {
       setLoading(false);

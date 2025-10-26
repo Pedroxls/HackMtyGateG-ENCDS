@@ -12,6 +12,9 @@ import { supabase } from './supabase';
 // Obtener todos los drawers pendientes y en progreso
 export async function getActiveDrawers() {
   try {
+    console.log('🔍 [getActiveDrawers] Iniciando query de drawers...');
+    console.log('🔍 [getActiveDrawers] Query params:', { verified: false });
+
     // Primero obtener los drawers
     const { data: drawersData, error: drawersError } = await supabase
       .from('drawers_assembled')
@@ -19,39 +22,85 @@ export async function getActiveDrawers() {
       .eq('verified', false) // Solo drawers no verificados (pendientes/en progreso)
       .order('completed_at', { ascending: false });
 
-    if (drawersError) throw drawersError;
-    if (!drawersData) return { data: [], error: null };
+    console.log('📦 [getActiveDrawers] Raw response:', {
+      dataType: typeof drawersData,
+      isArray: Array.isArray(drawersData),
+      length: drawersData?.length,
+      data: drawersData,
+      error: drawersError,
+    });
+
+    if (drawersError) {
+      console.error('❌ [getActiveDrawers] Error obteniendo drawers:', drawersError);
+      throw drawersError;
+    }
+
+    if (!drawersData || drawersData.length === 0) {
+      console.warn('⚠️ [getActiveDrawers] No se encontraron drawers');
+      console.warn('⚠️ Intentando obtener TODOS los drawers para debug...');
+
+      // Debug: obtener todos los drawers sin filtro
+      const { data: allDrawers } = await supabase
+        .from('drawers_assembled')
+        .select('id, verified');
+
+      console.log('🔍 Todos los drawers en DB:', allDrawers);
+
+      return { data: [], error: null };
+    }
 
     // Para cada drawer, obtener flight, content y scanned products manualmente
+    console.log('🔄 [getActiveDrawers] Obteniendo relaciones para cada drawer...');
     const drawersWithRelations = await Promise.all(
-      drawersData.map(async (drawer) => {
+      drawersData.map(async (drawer, index) => {
+        console.log(`  📋 Drawer ${index + 1}/${drawersData.length}: ${drawer.id}`);
+
         // Obtener flight
         let flights = null;
         if (drawer.flight_id) {
-          const { data: flightData } = await supabase
+          console.log(`    ✈️  Obteniendo flight: ${drawer.flight_id}`);
+          const { data: flightData, error: flightError } = await supabase
             .from('flights')
             .select('flight_number, route, arrival_time, flight_type')
             .eq('id', drawer.flight_id)
             .single();
+
+          if (flightError) {
+            console.error(`    ❌ Error obteniendo flight:`, flightError);
+          } else {
+            console.log(`    ✅ Flight: ${flightData?.flight_number}`);
+          }
           flights = flightData;
         }
 
         // Obtener drawer_content con productos
-        const { data: contentData } = await supabase
+        console.log(`    📦 Obteniendo drawer_content...`);
+        const { data: contentData, error: contentError } = await supabase
           .from('drawer_content')
           .select('quantity, product_id')
           .eq('drawer_id', drawer.id);
 
+        if (contentError) {
+          console.error(`    ❌ Error obteniendo drawer_content:`, contentError);
+        } else {
+          console.log(`    ✅ Content items: ${contentData?.length || 0}`);
+        }
+
         // Para cada content, obtener el producto
         let drawer_content = [];
-        if (contentData) {
+        if (contentData && contentData.length > 0) {
+          console.log(`    🔍 Obteniendo productos...`);
           drawer_content = await Promise.all(
             contentData.map(async (content) => {
-              const { data: productData } = await supabase
+              const { data: productData, error: productError } = await supabase
                 .from('products')
                 .select('id, name, category, sku')
                 .eq('id', content.product_id)
                 .single();
+
+              if (productError) {
+                console.error(`    ❌ Error obteniendo producto:`, productError);
+              }
 
               return {
                 quantity: content.quantity,
@@ -59,26 +108,38 @@ export async function getActiveDrawers() {
               };
             })
           );
+          console.log(`    ✅ Productos obtenidos: ${drawer_content.length}`);
         }
 
         // Obtener scanned_products
-        const { data: scannedData } = await supabase
+        console.log(`    🔎 Obteniendo scanned_products...`);
+        const { data: scannedData, error: scannedError } = await supabase
           .from('scanned_products')
           .select('*')
           .eq('drawer_id', drawer.id);
 
-        return {
+        if (scannedError) {
+          console.error(`    ❌ Error obteniendo scanned_products:`, scannedError);
+        } else {
+          console.log(`    ✅ Scanned products: ${scannedData?.length || 0}`);
+        }
+
+        const result = {
           ...drawer,
           flights,
           drawer_content,
           scanned_products: scannedData || [],
         };
+
+        console.log(`  ✅ Drawer ${index + 1} completado`);
+        return result;
       })
     );
 
+    console.log('✅ [getActiveDrawers] Todos los drawers procesados:', drawersWithRelations.length);
     return { data: drawersWithRelations, error: null };
   } catch (error) {
-    console.error('Error fetching drawers:', error);
+    console.error('❌ [getActiveDrawers] Error fatal:', error);
     return { data: null, error };
   }
 }
