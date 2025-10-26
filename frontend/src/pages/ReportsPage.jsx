@@ -13,7 +13,7 @@ export default function ReportPage() {
   }, [])
 
   return (
-    <Box sx={{ px: 3, py: 4, maxWidth: 900 }}>
+    <Box sx={{ py: 4, maxWidth: 900 }}>
       <Typography variant="h5" gutterBottom>
         Reporte de Predicción
       </Typography>

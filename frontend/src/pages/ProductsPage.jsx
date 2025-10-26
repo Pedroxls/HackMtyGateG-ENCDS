@@ -76,7 +76,7 @@ const ProductsPage = () => {
   }
 
   return (
-    <Box sx={{ width: '100%', maxWidth: 920, px: 2, py: 3 }}>
+    <Box sx={{ width: '100%', maxWidth: 920, py: 3 }}>
       <Typography variant="h5" gutterBottom>
         Productos
       </Typography>
@@ -94,7 +94,16 @@ const ProductsPage = () => {
             <Typography>No hay productos.</Typography>
           ) : (
             products.map((p) => (
-              <Paper key={p.id} elevation={2} sx={{ p: 2, mb: 2 }}>
+              <Paper
+                key={p.id}
+                sx={{
+                  p: 1.5,
+                  mb: 2,
+                  '&:hover': {
+                    border: '4px solid #00dc8fff'
+                  }
+                }}
+              >
                 <Stack direction="row" justifyContent="space-between" alignItems="center">
                   <Box>
                     <Typography fontWeight={600}>{p.name}</Typography>
