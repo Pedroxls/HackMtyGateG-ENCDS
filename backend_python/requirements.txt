@@ -3,3 +3,8 @@ uvicorn
 python-dotenv
 supabase
 pydantic
+python-multipart
+Pillow
+pytesseract
+python-dateutil
+regex

@@ -8,10 +8,12 @@ import {
   ActivityIndicator,
   Alert,
   TextInput,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { COLORS } from '../../src/constants/colors';
 import {
   extractDatesFromText,
@@ -19,7 +21,9 @@ import {
   formatExpiryDate,
   extractLotNumber,
 } from '../../src/utils/dateValidation';
-import { processExpiryDateLocal } from '../../src/services/ocrService';
+import { processExpiryDateOCR, processExpiryDateLocal } from '../../src/services/ocrService';
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export default function ScannerScreen() {
   const [permission, requestPermission] = useCameraPermissions();
@@ -43,12 +47,55 @@ export default function ScannerScreen() {
 
     try {
       const photo = await cameraRef.current.takePictureAsync({
-        quality: 0.8,
+        quality: 1.0, // Máxima calidad
+        skipProcessing: false,
         base64: false,
       });
 
-      setCapturedImage(photo.uri);
-      await processImage(photo.uri);
+      console.log('📸 Foto original:', photo.width, 'x', photo.height);
+      console.log('📱 Pantalla:', SCREEN_WIDTH, 'x', SCREEN_HEIGHT);
+
+      // Calcular la proporción entre la imagen y la pantalla
+      const scaleX = photo.width / SCREEN_WIDTH;
+      const scaleY = photo.height / SCREEN_HEIGHT;
+
+      // Dimensiones del marco en pantalla
+      const frameWidthScreen = SCREEN_WIDTH * 0.8;
+      const frameHeightScreen = 250;
+      const frameXScreen = (SCREEN_WIDTH - frameWidthScreen) / 2;
+      const frameYScreen = (SCREEN_HEIGHT - frameHeightScreen) / 2;
+
+      // Convertir a coordenadas de la imagen real
+      const cropX = frameXScreen * scaleX;
+      const cropY = frameYScreen * scaleY;
+      const cropWidth = frameWidthScreen * scaleX;
+      const cropHeight = frameHeightScreen * scaleY;
+
+      console.log('📐 Crop:', {
+        x: Math.round(cropX),
+        y: Math.round(cropY),
+        width: Math.round(cropWidth),
+        height: Math.round(cropHeight),
+      });
+
+      const croppedImage = await ImageManipulator.manipulateAsync(
+        photo.uri,
+        [
+          {
+            crop: {
+              originX: cropX,
+              originY: cropY,
+              width: cropWidth,
+              height: cropHeight,
+            },
+          },
+        ],
+        { compress: 0.9, format: ImageManipulator.SaveFormat.JPEG }
+      );
+
+      console.log('✂️ Imagen recortada:', croppedImage.width, 'x', croppedImage.height);
+      setCapturedImage(croppedImage.uri);
+      await processImage(croppedImage.uri);
     } catch (error) {
       console.error('Error taking picture:', error);
       Alert.alert('Error', 'No se pudo capturar la imagen');
@@ -59,8 +106,8 @@ export default function ScannerScreen() {
     setProcessing(true);
 
     try {
-      // Llamar al servicio de OCR (por ahora usa el mock local)
-      const result = await processExpiryDateLocal(imageUri);
+      // Llamar al servicio de OCR del backend
+      const result = await processExpiryDateOCR(imageUri);
 
       if (result.success && result.extracted_text) {
         // Extraer fechas del texto
