@@ -1,9 +1,16 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import React, { useState, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Modal, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { CameraView, useCameraPermissions } from 'expo-camera';
+import * as ImageManipulator from 'expo-image-manipulator';
+import { Dimensions } from 'react-native';
 import { COLORS } from '../../../src/constants/colors';
+import { processExpiryDateOCR } from '../../../src/services/ocrService';
+import { validateExpiryDate, formatExpiryDate } from '../../../src/utils/dateValidation';
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 // Mock data de productos del cajón
 const MOCK_DRAWER_PRODUCTS = {
@@ -65,9 +72,22 @@ export default function DrawerDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
   const [timerStarted, setTimerStarted] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
+  const [processing, setProcessing] = useState(false);
+  const [ocrResult, setOcrResult] = useState(null);
+  const [products, setProducts] = useState(null);
+  const cameraRef = useRef(null);
+  const [permission, requestPermission] = useCameraPermissions();
 
   // Obtener datos del cajón (mock)
   const drawerData = MOCK_DRAWER_PRODUCTS[id];
+
+  // Inicializar productos desde mock data
+  React.useEffect(() => {
+    if (drawerData && !products) {
+      setProducts(drawerData.products);
+    }
+  }, [drawerData]);
 
   if (!drawerData) {
     return (
@@ -82,12 +102,13 @@ export default function DrawerDetailScreen() {
     );
   }
 
-  const { drawer, products } = drawerData;
-  const totalScanned = products.reduce((sum, p) => sum + p.scanned, 0);
-  const totalRequired = products.reduce((sum, p) => sum + p.required, 0);
+  const { drawer } = drawerData;
+  const productList = products || drawerData.products;
+  const totalScanned = productList.reduce((sum, p) => sum + p.scanned, 0);
+  const totalRequired = productList.reduce((sum, p) => sum + p.required, 0);
   const progress = totalRequired > 0 ? (totalScanned / totalRequired) * 100 : 0;
 
-  const currentProduct = products.find((p) => p.scanned < p.required);
+  const currentProduct = productList.find((p) => p.scanned < p.required);
 
   const handleStartAssembly = () => {
     setTimerStarted(true);
@@ -100,14 +121,132 @@ export default function DrawerDetailScreen() {
 
   const handleScanProduct = () => {
     if (currentProduct?.requiresExpiry) {
-      // Navegar al scanner OCR
-      router.push('/scanner');
+      // Abrir cámara para escanear fecha de caducidad
+      if (!permission?.granted) {
+        requestPermission();
+      } else {
+        setShowScanner(true);
+        setOcrResult(null);
+      }
     } else {
-      // Simular escaneo directo
-      Alert.alert('Producto Escaneado', `${currentProduct?.name} agregado`, [
-        { text: 'OK' },
-      ]);
+      // Escaneo directo sin verificar fecha
+      handleProductScanned(null);
     }
+  };
+
+  const handleTakePicture = async () => {
+    if (!cameraRef.current) return;
+
+    try {
+      const photo = await cameraRef.current.takePictureAsync({
+        quality: 1.0,
+        skipProcessing: false,
+        base64: false,
+      });
+
+      // Recortar al área del marco
+      const frameWidth = SCREEN_WIDTH * 0.8;
+      const frameHeight = 250;
+      const frameX = (SCREEN_WIDTH - frameWidth) / 2;
+      const frameY = (SCREEN_HEIGHT - frameHeight) / 2;
+
+      const scaleX = photo.width / SCREEN_WIDTH;
+      const scaleY = photo.height / SCREEN_HEIGHT;
+
+      const croppedImage = await ImageManipulator.manipulateAsync(
+        photo.uri,
+        [
+          {
+            crop: {
+              originX: frameX * scaleX,
+              originY: frameY * scaleY,
+              width: frameWidth * scaleX,
+              height: frameHeight * scaleY,
+            },
+          },
+        ],
+        { compress: 0.9, format: ImageManipulator.SaveFormat.JPEG }
+      );
+
+      await processImage(croppedImage.uri);
+    } catch (error) {
+      console.error('Error taking picture:', error);
+      Alert.alert('Error', 'No se pudo capturar la imagen');
+    }
+  };
+
+  const processImage = async (imageUri) => {
+    setProcessing(true);
+
+    try {
+      const result = await processExpiryDateOCR(imageUri);
+
+      if (result.success && result.expiry_date) {
+        const validation = validateExpiryDate(new Date(result.expiry_date));
+
+        setOcrResult({
+          date: result.expiry_date,
+          formattedDate: formatExpiryDate(new Date(result.expiry_date)),
+          validation,
+          lotNumber: result.lot_number,
+          confidence: result.confidence,
+          rawText: result.extracted_text,
+        });
+
+        // Si la fecha es válida, agregar producto automáticamente
+        if (validation.status !== 'expired') {
+          setTimeout(() => {
+            handleProductScanned({
+              expiryDate: result.expiry_date,
+              lotNumber: result.lot_number,
+            });
+          }, 1500); // Dar tiempo para ver el resultado
+        }
+      } else {
+        Alert.alert(
+          'No se detectó fecha',
+          'No pudimos detectar la fecha de caducidad. ¿Deseas ingresarla manualmente?',
+          [
+            { text: 'Reintentar', onPress: () => setProcessing(false) },
+            { text: 'Manual', onPress: () => handleManualEntry() },
+          ]
+        );
+      }
+    } catch (error) {
+      console.error('OCR Error:', error);
+      Alert.alert('Error', 'Error procesando imagen');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleProductScanned = (ocrData) => {
+    if (!currentProduct) return;
+
+    // Actualizar contador del producto actual
+    setProducts((prevProducts) =>
+      prevProducts.map((p) =>
+        p.id === currentProduct.id
+          ? { ...p, scanned: Math.min(p.scanned + 1, p.required) }
+          : p
+      )
+    );
+
+    setShowScanner(false);
+    setOcrResult(null);
+
+    // TODO: Guardar en Supabase
+    console.log('Producto escaneado:', {
+      productId: currentProduct.id,
+      drawerId: id,
+      ...ocrData,
+    });
+  };
+
+  const handleManualEntry = () => {
+    setShowScanner(false);
+    // TODO: Abrir modal de entrada manual
+    Alert.alert('Entrada Manual', 'Funcionalidad pendiente');
   };
 
   return (
@@ -217,7 +356,7 @@ export default function DrawerDetailScreen() {
           <Text style={styles.sectionTitle}>
             {timerStarted ? 'Próximos Productos' : 'Lista de Productos'}
           </Text>
-          {products.map((product, index) => {
+          {productList.map((product, index) => {
             const isComplete = product.scanned >= product.required;
             const isCurrent = product.id === currentProduct?.id && timerStarted;
 
@@ -268,6 +407,95 @@ export default function DrawerDetailScreen() {
           </TouchableOpacity>
         )}
       </ScrollView>
+
+      {/* Modal de Scanner OCR */}
+      <Modal visible={showScanner} animationType="slide" statusBarTranslucent>
+        <View style={styles.scannerModal}>
+          {!processing && !ocrResult && (
+            <CameraView style={styles.camera} ref={cameraRef}>
+              <SafeAreaView style={styles.cameraOverlay} edges={['top']}>
+                <View style={styles.scannerHeader}>
+                  <TouchableOpacity
+                    onPress={() => setShowScanner(false)}
+                    style={styles.closeButton}
+                  >
+                    <Ionicons name="close" size={28} color={COLORS.textInverse} />
+                  </TouchableOpacity>
+                  <Text style={styles.scannerTitle}>
+                    {currentProduct?.name}
+                  </Text>
+                </View>
+
+                <View style={styles.scanArea}>
+                  <View style={styles.scanFrame}>
+                    <View style={[styles.corner, styles.cornerTL]} />
+                    <View style={[styles.corner, styles.cornerTR]} />
+                    <View style={[styles.corner, styles.cornerBL]} />
+                    <View style={[styles.corner, styles.cornerBR]} />
+                  </View>
+                  <Text style={styles.scanInstruction}>
+                    Enfoca la fecha de caducidad
+                  </Text>
+                </View>
+
+                <View style={styles.scannerFooter}>
+                  <TouchableOpacity
+                    style={styles.captureButton}
+                    onPress={handleTakePicture}
+                  >
+                    <View style={styles.captureButtonInner} />
+                  </TouchableOpacity>
+                </View>
+              </SafeAreaView>
+            </CameraView>
+          )}
+
+          {processing && (
+            <View style={styles.processingContainer}>
+              <ActivityIndicator size="large" color={COLORS.primary} />
+              <Text style={styles.processingText}>Procesando imagen...</Text>
+            </View>
+          )}
+
+          {ocrResult && (
+            <View style={styles.resultContainer}>
+              <Ionicons
+                name={
+                  ocrResult.validation.status === 'expired'
+                    ? 'close-circle'
+                    : ocrResult.validation.status === 'warning'
+                    ? 'warning'
+                    : 'checkmark-circle'
+                }
+                size={80}
+                color={ocrResult.validation.color}
+              />
+              <Text style={styles.resultDate}>{ocrResult.formattedDate}</Text>
+              <View
+                style={[
+                  styles.resultBadge,
+                  { backgroundColor: ocrResult.validation.color },
+                ]}
+              >
+                <Text style={styles.resultBadgeText}>
+                  {ocrResult.validation.message}
+                </Text>
+              </View>
+              {ocrResult.lotNumber && (
+                <Text style={styles.resultLot}>LOT: {ocrResult.lotNumber}</Text>
+              )}
+              {ocrResult.validation.status === 'expired' && (
+                <TouchableOpacity
+                  style={styles.rejectButton}
+                  onPress={() => setShowScanner(false)}
+                >
+                  <Text style={styles.rejectButtonText}>Rechazar Producto</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -510,5 +738,160 @@ const styles = StyleSheet.create({
   backText: {
     fontSize: 16,
     color: COLORS.primary,
+  },
+  // Scanner Modal Styles
+  scannerModal: {
+    flex: 1,
+    backgroundColor: COLORS.backgroundSecondary,
+  },
+  camera: {
+    flex: 1,
+  },
+  cameraOverlay: {
+    flex: 1,
+  },
+  scannerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  closeButton: {
+    padding: 8,
+  },
+  scannerTitle: {
+    flex: 1,
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: COLORS.textInverse,
+    marginLeft: 12,
+  },
+  scanArea: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scanFrame: {
+    width: SCREEN_WIDTH * 0.8,
+    height: 250,
+    position: 'relative',
+    backgroundColor: 'transparent',
+    borderWidth: 2,
+    borderColor: COLORS.success,
+    borderRadius: 12,
+  },
+  corner: {
+    position: 'absolute',
+    width: 30,
+    height: 30,
+    borderColor: COLORS.textInverse,
+  },
+  cornerTL: {
+    top: -2,
+    left: -2,
+    borderTopWidth: 4,
+    borderLeftWidth: 4,
+    borderTopLeftRadius: 12,
+  },
+  cornerTR: {
+    top: -2,
+    right: -2,
+    borderTopWidth: 4,
+    borderRightWidth: 4,
+    borderTopRightRadius: 12,
+  },
+  cornerBL: {
+    bottom: -2,
+    left: -2,
+    borderBottomWidth: 4,
+    borderLeftWidth: 4,
+    borderBottomLeftRadius: 12,
+  },
+  cornerBR: {
+    bottom: -2,
+    right: -2,
+    borderBottomWidth: 4,
+    borderRightWidth: 4,
+    borderBottomRightRadius: 12,
+  },
+  scanInstruction: {
+    marginTop: 24,
+    fontSize: 16,
+    color: COLORS.textInverse,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+  },
+  scannerFooter: {
+    paddingBottom: 40,
+    alignItems: 'center',
+  },
+  captureButton: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  captureButtonInner: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: COLORS.textInverse,
+  },
+  processingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.backgroundSecondary,
+  },
+  processingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: COLORS.text,
+  },
+  resultContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.backgroundSecondary,
+    padding: 20,
+  },
+  resultDate: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: COLORS.text,
+    marginTop: 20,
+  },
+  resultBadge: {
+    marginTop: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+  },
+  resultBadgeText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: COLORS.textInverse,
+  },
+  resultLot: {
+    fontSize: 18,
+    color: COLORS.textSecondary,
+    marginTop: 16,
+  },
+  rejectButton: {
+    marginTop: 32,
+    paddingHorizontal: 32,
+    paddingVertical: 16,
+    backgroundColor: COLORS.error,
+    borderRadius: 12,
+  },
+  rejectButtonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: COLORS.textInverse,
   },
 });
