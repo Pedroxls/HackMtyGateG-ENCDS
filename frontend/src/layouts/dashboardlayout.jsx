@@ -1,7 +1,7 @@
 // src/layouts/DashboardLayout.jsx
 // Layout principal: Sidebar (Drawer) + Topbar (AppBar) + Contenido (Outlet)
 
-import { Outlet, useLocation, Link as RouterLink } from 'react-router-dom'
+import { Outlet, useLocation } from 'react-router-dom'
 import { useMemo } from 'react'
 import {
   Box,
@@ -11,15 +11,14 @@ import {
   Typography,
   Drawer,
   Divider,
-  List,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
 } from '@mui/material'
 import DashboardRoundedIcon from '@mui/icons-material/DashboardRounded'
 import AssessmentRoundedIcon from '@mui/icons-material/AssessmentRounded'
 import TimelineRoundedIcon from '@mui/icons-material/TimelineRounded'
+import Inventory2RoundedIcon from '@mui/icons-material/Inventory2Rounded'
 import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded'
+import FlightTakeoffRoundedIcon from '@mui/icons-material/FlightTakeoffRounded'
+import GroupsRoundedIcon from '@mui/icons-material/GroupsRounded'
 import Sidebar from '../components/sidebar.jsx'
 import Topbar from '../components/topbar.jsx'
 
@@ -28,12 +27,14 @@ const drawerWidth = 240
 export default function DashboardLayout() {
   const { pathname } = useLocation()
 
-  // Menú lateral (puedes ampliarlo después)
   const navItems = useMemo(
     () => [
       { label: 'Dashboard', to: '/dashboard', icon: <DashboardRoundedIcon /> },
       { label: 'Reportes', to: '/reports', icon: <AssessmentRoundedIcon /> },
       { label: 'Predicción', to: '/forecast', icon: <TimelineRoundedIcon /> },
+      { label: 'Productos', to: '/products', icon: <Inventory2RoundedIcon /> },
+      { label: 'Vuelos', to: '/flights', icon: <FlightTakeoffRoundedIcon /> },
+      { label: 'Empleados', to: '/employees', icon: <GroupsRoundedIcon /> },
       { label: 'Ajustes', to: '/settings', icon: <SettingsRoundedIcon /> },
     ],
     []
@@ -46,7 +47,14 @@ export default function DashboardLayout() {
       {/* Topbar fija */}
       <AppBar
         position="fixed"
-        sx={{ width: `calc(100% - ${drawerWidth}px)`, ml: `${drawerWidth}px`, bgcolor: '#fff', color: '#111', boxShadow: 'none', borderBottom: '1px solid #e5e7eb' }}
+        sx={{
+          width: `calc(100% - ${drawerWidth}px)`,
+          ml: `${drawerWidth}px`,
+          bgcolor: '#fff',
+          color: '#111',
+          boxShadow: 'none',
+          borderBottom: '1px solid #e5e7eb'
+        }}
       >
         <Topbar title={getTitleFromPath(pathname)} />
       </AppBar>
@@ -57,7 +65,11 @@ export default function DashboardLayout() {
         sx={{
           width: drawerWidth,
           flexShrink: 0,
-          '& .MuiDrawer-paper': { width: drawerWidth, boxSizing: 'border-box', borderRight: '1px solid #e5e7eb' },
+          '& .MuiDrawer-paper': {
+            width: drawerWidth,
+            boxSizing: 'border-box',
+            borderRight: '1px solid #e5e7eb'
+          },
         }}
         open
       >
@@ -67,14 +79,15 @@ export default function DashboardLayout() {
           </Typography>
         </Toolbar>
         <Divider />
-        {/* Sidebar reutilizable (lista de navegación) */}
         <Sidebar items={navItems} />
       </Drawer>
 
       {/* Contenido: deja espacio para AppBar (Toolbar) */}
-      <Box component="main" sx={{ flexGrow: 1, p: 3, ml: `${drawerWidth}px` }}>
-        <Toolbar /> {/* empuja el contenido debajo del Topbar */}
-        <Outlet />
+      <Box component="main" sx={{ flexGrow: 1, ml: `${drawerWidth}px`, py: 4 }}>
+        <Toolbar />
+        <Box sx={{ maxWidth: '1200px', px: 3 }}>
+          <Outlet />
+        </Box>
       </Box>
     </Box>
   )
@@ -85,5 +98,8 @@ function getTitleFromPath(path) {
   if (path.startsWith('/forecast')) return 'Predicción'
   if (path.startsWith('/reports')) return 'Reportes'
   if (path.startsWith('/settings')) return 'Ajustes'
+  if (path.startsWith('/products')) return 'Productos'
+  if (path.startsWith('/flights')) return 'Vuelos'
+  if (path.startsWith('/employees')) return 'Empleados'
   return 'Dashboard'
 }
