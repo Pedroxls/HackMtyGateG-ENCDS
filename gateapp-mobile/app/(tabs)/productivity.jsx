@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../src/constants/colors';
 import { supabase } from '../../src/services/supabase';
 import LoadingScreen from '../../src/components/common/LoadingScreen';
+import FadeInView from '../../src/components/common/FadeInView';
 
 export default function ProductivityScreen() {
   const [stats, setStats] = useState({
@@ -224,138 +225,152 @@ export default function ProductivityScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         {/* Header */}
-        <View style={styles.header}>
-          <Ionicons name="stats-chart" size={32} color={COLORS.primary} />
-          <Text style={styles.headerTitle}>Mi Productividad</Text>
-          <Text style={styles.headerSubtitle}>Métricas y estadísticas personales</Text>
-        </View>
+        <FadeInView duration={300}>
+          <View style={styles.header}>
+            <Ionicons name="stats-chart" size={32} color={COLORS.primary} />
+            <Text style={styles.headerTitle}>Mi Productividad</Text>
+            <Text style={styles.headerSubtitle}>Métricas y estadísticas personales</Text>
+          </View>
+        </FadeInView>
 
         {/* Period Selector */}
-        <View style={styles.periodSelector}>
-          <TouchableOpacity
-            style={[styles.periodTab, selectedPeriod === 'today' && styles.periodTabActive]}
-            onPress={() => setSelectedPeriod('today')}
-          >
-            <Text style={[styles.periodText, selectedPeriod === 'today' && styles.periodTextActive]}>
-              Hoy
-            </Text>
-          </TouchableOpacity>
+        <FadeInView delay={100}>
+          <View style={styles.periodSelector}>
+            <TouchableOpacity
+              style={[styles.periodTab, selectedPeriod === 'today' && styles.periodTabActive]}
+              onPress={() => setSelectedPeriod('today')}
+            >
+              <Text style={[styles.periodText, selectedPeriod === 'today' && styles.periodTextActive]}>
+                Hoy
+              </Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.periodTab, selectedPeriod === 'week' && styles.periodTabActive]}
-            onPress={() => setSelectedPeriod('week')}
-          >
-            <Text style={[styles.periodText, selectedPeriod === 'week' && styles.periodTextActive]}>
-              7 Días
-            </Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.periodTab, selectedPeriod === 'week' && styles.periodTabActive]}
+              onPress={() => setSelectedPeriod('week')}
+            >
+              <Text style={[styles.periodText, selectedPeriod === 'week' && styles.periodTextActive]}>
+                7 Días
+              </Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.periodTab, selectedPeriod === 'month' && styles.periodTabActive]}
-            onPress={() => setSelectedPeriod('month')}
-          >
-            <Text style={[styles.periodText, selectedPeriod === 'month' && styles.periodTextActive]}>
-              30 Días
-            </Text>
-          </TouchableOpacity>
-        </View>
+            <TouchableOpacity
+              style={[styles.periodTab, selectedPeriod === 'month' && styles.periodTabActive]}
+              onPress={() => setSelectedPeriod('month')}
+            >
+              <Text style={[styles.periodText, selectedPeriod === 'month' && styles.periodTextActive]}>
+                30 Días
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </FadeInView>
 
         {/* Main Stats */}
-        <View style={styles.mainStatsContainer}>
-          <View style={styles.statCard}>
-            <Ionicons name="cube" size={28} color={COLORS.primary} />
-            <Text style={styles.statValue}>{currentStats.drawers}</Text>
-            <Text style={styles.statLabel}>Cajones</Text>
-          </View>
+        <FadeInView delay={200}>
+          <View style={styles.mainStatsContainer}>
+            <View style={styles.statCard}>
+              <Ionicons name="cube" size={28} color={COLORS.primary} />
+              <Text style={styles.statValue}>{currentStats.drawers}</Text>
+              <Text style={styles.statLabel}>Cajones</Text>
+            </View>
 
-          <View style={styles.statCard}>
-            <Ionicons name="scan" size={28} color={COLORS.success} />
-            <Text style={styles.statValue}>{currentStats.products}</Text>
-            <Text style={styles.statLabel}>Productos</Text>
-          </View>
+            <View style={styles.statCard}>
+              <Ionicons name="scan" size={28} color={COLORS.success} />
+              <Text style={styles.statValue}>{currentStats.products}</Text>
+              <Text style={styles.statLabel}>Productos</Text>
+            </View>
 
-          <View style={styles.statCard}>
-            <Ionicons name="timer" size={28} color={COLORS.warning} />
-            <Text style={styles.statValue}>{currentStats.avgTime}</Text>
-            <Text style={styles.statLabel}>Promedio</Text>
+            <View style={styles.statCard}>
+              <Ionicons name="timer" size={28} color={COLORS.warning} />
+              <Text style={styles.statValue}>{currentStats.avgTime}</Text>
+              <Text style={styles.statLabel}>Promedio</Text>
+            </View>
           </View>
-        </View>
+        </FadeInView>
 
         {/* Achievement Cards */}
-        <View style={styles.achievementsContainer}>
-          <View style={styles.achievementCard}>
-            <View style={styles.achievementIcon}>
-              <Ionicons name="trophy" size={24} color={COLORS.warning} />
+        <FadeInView delay={300}>
+          <View style={styles.achievementsContainer}>
+            <View style={styles.achievementCard}>
+              <View style={styles.achievementIcon}>
+                <Ionicons name="trophy" size={24} color={COLORS.warning} />
+              </View>
+              <View style={styles.achievementContent}>
+                <Text style={styles.achievementValue}>{stats.bestTime || '--:--'}</Text>
+                <Text style={styles.achievementLabel}>Mejor Tiempo</Text>
+              </View>
             </View>
-            <View style={styles.achievementContent}>
-              <Text style={styles.achievementValue}>{stats.bestTime || '--:--'}</Text>
-              <Text style={styles.achievementLabel}>Mejor Tiempo</Text>
-            </View>
-          </View>
 
-          <View style={styles.achievementCard}>
-            <View style={styles.achievementIcon}>
-              <Ionicons name="flame" size={24} color={COLORS.error} />
-            </View>
-            <View style={styles.achievementContent}>
-              <Text style={styles.achievementValue}>{stats.currentStreak} días</Text>
-              <Text style={styles.achievementLabel}>Racha Actual</Text>
+            <View style={styles.achievementCard}>
+              <View style={styles.achievementIcon}>
+                <Ionicons name="flame" size={24} color={COLORS.error} />
+              </View>
+              <View style={styles.achievementContent}>
+                <Text style={styles.achievementValue}>{stats.currentStreak} días</Text>
+                <Text style={styles.achievementLabel}>Racha Actual</Text>
+              </View>
             </View>
           </View>
-        </View>
+        </FadeInView>
 
         {/* Total Stats */}
-        <View style={styles.totalStatsCard}>
-          <Text style={styles.totalStatsTitle}>Estadísticas Totales</Text>
-          <View style={styles.totalStatsGrid}>
-            <View style={styles.totalStatItem}>
-              <Text style={styles.totalStatValue}>{stats.total.drawers}</Text>
-              <Text style={styles.totalStatLabel}>Cajones Totales</Text>
-            </View>
-            <View style={styles.totalStatDivider} />
-            <View style={styles.totalStatItem}>
-              <Text style={styles.totalStatValue}>{stats.total.products}</Text>
-              <Text style={styles.totalStatLabel}>Productos Totales</Text>
+        <FadeInView delay={400}>
+          <View style={styles.totalStatsCard}>
+            <Text style={styles.totalStatsTitle}>Estadísticas Totales</Text>
+            <View style={styles.totalStatsGrid}>
+              <View style={styles.totalStatItem}>
+                <Text style={styles.totalStatValue}>{stats.total.drawers}</Text>
+                <Text style={styles.totalStatLabel}>Cajones Totales</Text>
+              </View>
+              <View style={styles.totalStatDivider} />
+              <View style={styles.totalStatItem}>
+                <Text style={styles.totalStatValue}>{stats.total.products}</Text>
+                <Text style={styles.totalStatLabel}>Productos Totales</Text>
+              </View>
             </View>
           </View>
-        </View>
+        </FadeInView>
 
         {/* Recent Drawers */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Historial Reciente</Text>
-          {recentDrawers.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Ionicons name="cube-outline" size={48} color={COLORS.textSecondary} />
-              <Text style={styles.emptyText}>No hay cajones completados</Text>
-            </View>
-          ) : (
-            recentDrawers.map((drawer) => (
-              <View key={drawer.id} style={styles.drawerHistoryCard}>
-                <View style={styles.drawerHistoryHeader}>
-                  <Text style={styles.drawerHistoryId}>{drawer.displayId}</Text>
-                  <View style={styles.drawerHistoryBadge}>
-                    <Ionicons name="time-outline" size={14} color={COLORS.textSecondary} />
-                    <Text style={styles.drawerHistoryTime}>{drawer.time}</Text>
-                  </View>
-                </View>
-                <View style={styles.drawerHistoryInfo}>
-                  <Ionicons name="airplane-outline" size={12} color={COLORS.textSecondary} />
-                  <Text style={styles.drawerHistoryFlight}>
-                    {drawer.flightNumber} • {drawer.route}
-                  </Text>
-                </View>
-                <Text style={styles.drawerHistoryDate}>
-                  {new Date(drawer.completedAt).toLocaleDateString('es-MX', {
-                    day: '2-digit',
-                    month: 'short',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
-                </Text>
+        <FadeInView delay={500}>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Historial Reciente</Text>
+            {recentDrawers.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Ionicons name="cube-outline" size={48} color={COLORS.textSecondary} />
+                <Text style={styles.emptyText}>No hay cajones completados</Text>
               </View>
-            ))
-          )}
-        </View>
+            ) : (
+              recentDrawers.map((drawer, index) => (
+                <FadeInView key={drawer.id} delay={600 + index * 50}>
+                  <View style={styles.drawerHistoryCard}>
+                    <View style={styles.drawerHistoryHeader}>
+                      <Text style={styles.drawerHistoryId}>{drawer.displayId}</Text>
+                      <View style={styles.drawerHistoryBadge}>
+                        <Ionicons name="time-outline" size={14} color={COLORS.textSecondary} />
+                        <Text style={styles.drawerHistoryTime}>{drawer.time}</Text>
+                      </View>
+                    </View>
+                    <View style={styles.drawerHistoryInfo}>
+                      <Ionicons name="airplane-outline" size={12} color={COLORS.textSecondary} />
+                      <Text style={styles.drawerHistoryFlight}>
+                        {drawer.flightNumber} • {drawer.route}
+                      </Text>
+                    </View>
+                    <Text style={styles.drawerHistoryDate}>
+                      {new Date(drawer.completedAt).toLocaleDateString('es-MX', {
+                        day: '2-digit',
+                        month: 'short',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </Text>
+                  </View>
+                </FadeInView>
+              ))
+            )}
+          </View>
+        </FadeInView>
       </ScrollView>
     </SafeAreaView>
   );

@@ -7,6 +7,7 @@ import { SearchBar } from '../../../src/components/common';
 import { DrawerCard, FilterTabs } from '../../../src/components/drawer';
 import { getActiveDrawers } from '../../../src/services/supabaseService';
 import LoadingScreen from '../../../src/components/common/LoadingScreen';
+import FadeInView from '../../../src/components/common/FadeInView';
 
 // Mock data - esto se reemplazará con datos de Supabase
 const MOCK_DRAWERS = [
@@ -190,27 +191,33 @@ export default function DrawersScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.title}>Cajones</Text>
-        <Text style={styles.subtitle}>
-          {filteredDrawers.length} cajón{filteredDrawers.length !== 1 ? 'es' : ''}
-        </Text>
-      </View>
+      <FadeInView duration={300}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Cajones</Text>
+          <Text style={styles.subtitle}>
+            {filteredDrawers.length} cajón{filteredDrawers.length !== 1 ? 'es' : ''}
+          </Text>
+        </View>
+      </FadeInView>
 
       {/* Search */}
-      <SearchBar
-        value={searchQuery}
-        onChangeText={setSearchQuery}
-        placeholder="Buscar por ID, vuelo o destino..."
-        onClear={() => setSearchQuery('')}
-      />
+      <FadeInView delay={100}>
+        <SearchBar
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholder="Buscar por ID, vuelo o destino..."
+          onClear={() => setSearchQuery('')}
+        />
+      </FadeInView>
 
       {/* Filters */}
-      <FilterTabs
-        activeFilter={activeFilter}
-        onFilterChange={setActiveFilter}
-        counts={counts}
-      />
+      <FadeInView delay={200}>
+        <FilterTabs
+          activeFilter={activeFilter}
+          onFilterChange={setActiveFilter}
+          counts={counts}
+        />
+      </FadeInView>
 
       {/* List */}
       {loading ? (
@@ -222,20 +229,24 @@ export default function DrawersScreen() {
         <FlatList
           data={filteredDrawers}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <DrawerCard drawer={item} onPress={() => handleDrawerPress(item)} />
+          renderItem={({ item, index }) => (
+            <FadeInView delay={300 + index * 50}>
+              <DrawerCard drawer={item} onPress={() => handleDrawerPress(item)} />
+            </FadeInView>
           )}
           contentContainerStyle={styles.listContent}
           onRefresh={loadDrawers}
           refreshing={loading}
           ListEmptyComponent={
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyIcon}>📦</Text>
-              <Text style={styles.emptyText}>No se encontraron cajones</Text>
-              <Text style={styles.emptySubtext}>
-                Intenta con otro filtro o búsqueda
-              </Text>
-            </View>
+            <FadeInView delay={300}>
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyIcon}>📦</Text>
+                <Text style={styles.emptyText}>No se encontraron cajones</Text>
+                <Text style={styles.emptySubtext}>
+                  Intenta con otro filtro o búsqueda
+                </Text>
+              </View>
+            </FadeInView>
           }
         />
       )}

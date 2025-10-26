@@ -15,6 +15,8 @@ import {
   startDrawerAssembly,
   pauseDrawerAssembly
 } from '../../../src/services/supabaseService';
+import LoadingScreen from '../../../src/components/common/LoadingScreen';
+import FadeInView from '../../../src/components/common/FadeInView';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -223,14 +225,7 @@ export default function DrawerDetailScreen() {
   };
 
   if (loading) {
-    return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <View style={styles.errorContainer}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.processingText}>Cargando cajón...</Text>
-        </View>
-      </SafeAreaView>
-    );
+    return <LoadingScreen message="Cargando cajón..." />;
   }
 
   if (!drawerData) {
@@ -453,24 +448,27 @@ export default function DrawerDetailScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="chevron-back" size={24} color={COLORS.primary} />
-        </TouchableOpacity>
-        <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>DRAWER {displayDrawerId}</Text>
-          {timerStarted && (
-            <View style={styles.timerBadge}>
-              <Ionicons name="time" size={14} color={COLORS.textInverse} />
-              <Text style={styles.timerText}>{formatTime(elapsedSeconds)}</Text>
-            </View>
-          )}
+      <FadeInView duration={300}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <Ionicons name="chevron-back" size={24} color={COLORS.primary} />
+          </TouchableOpacity>
+          <View style={styles.headerContent}>
+            <Text style={styles.headerTitle}>DRAWER {displayDrawerId}</Text>
+            {timerStarted && (
+              <View style={styles.timerBadge}>
+                <Ionicons name="time" size={14} color={COLORS.textInverse} />
+                <Text style={styles.timerText}>{formatTime(elapsedSeconds)}</Text>
+              </View>
+            )}
+          </View>
         </View>
-      </View>
+      </FadeInView>
 
       <ScrollView style={styles.scrollView}>
         {/* Flight Info Card */}
-        <View style={styles.infoCard}>
+        <FadeInView delay={100}>
+          <View style={styles.infoCard}>
           <View style={styles.infoRow}>
             <Ionicons name="airplane" size={20} color={COLORS.primary} />
             <View style={styles.infoContent}>
@@ -502,21 +500,25 @@ export default function DrawerDetailScreen() {
             </View>
           </View>
         </View>
+        </FadeInView>
 
         {/* Progress */}
-        <View style={styles.progressCard}>
-          <Text style={styles.progressTitle}>Progreso Total</Text>
-          <View style={styles.progressBarContainer}>
-            <View style={[styles.progressBarFill, { width: `${progress}%` }]} />
+        <FadeInView delay={200}>
+          <View style={styles.progressCard}>
+            <Text style={styles.progressTitle}>Progreso Total</Text>
+            <View style={styles.progressBarContainer}>
+              <View style={[styles.progressBarFill, { width: `${progress}%` }]} />
+            </View>
+            <Text style={styles.progressText}>
+              {totalScanned} de {totalRequired} productos completados
+            </Text>
           </View>
-          <Text style={styles.progressText}>
-            {totalScanned} de {totalRequired} productos completados
-          </Text>
-        </View>
+        </FadeInView>
 
         {/* Current Product */}
         {currentProduct && timerStarted && (
-          <View style={styles.currentProductCard}>
+          <FadeInView delay={300}>
+            <View style={styles.currentProductCard}>
             <Text style={styles.currentProductLabel}>PRODUCTO ACTUAL</Text>
             <View style={styles.currentProductContent}>
               <Text style={styles.currentProductIcon}>{currentProduct.icon}</Text>
@@ -549,71 +551,77 @@ export default function DrawerDetailScreen() {
                 {currentProduct.requiresExpiry ? 'ESCANEAR + VERIFICAR FECHA' : 'ESCANEAR CÓDIGO'}
               </Text>
             </TouchableOpacity>
-          </View>
+            </View>
+          </FadeInView>
         )}
 
         {/* Products List */}
-        <View style={styles.productsSection}>
-          <Text style={styles.sectionTitle}>
-            {timerStarted ? 'Próximos Productos' : 'Lista de Productos'}
-          </Text>
-          {productList.map((product, index) => {
-            const isComplete = product.scanned >= product.required;
-            const isCurrent = product.id === currentProduct?.id && timerStarted;
+        <FadeInView delay={400}>
+          <View style={styles.productsSection}>
+            <Text style={styles.sectionTitle}>
+              {timerStarted ? 'Próximos Productos' : 'Lista de Productos'}
+            </Text>
+            {productList.map((product, index) => {
+              const isComplete = product.scanned >= product.required;
+              const isCurrent = product.id === currentProduct?.id && timerStarted;
 
-            if (timerStarted && (isComplete || isCurrent)) {
-              return null; // No mostrar completados o el actual cuando está en progreso
-            }
+              if (timerStarted && (isComplete || isCurrent)) {
+                return null; // No mostrar completados o el actual cuando está en progreso
+              }
 
-            return (
-              <View
-                key={product.id}
-                style={[
-                  styles.productItem,
-                  isComplete && styles.productItemComplete,
-                ]}
-              >
-                <Text style={styles.productIcon}>{product.icon}</Text>
-                <View style={styles.productInfo}>
-                  <Text
+              return (
+                <FadeInView key={product.id} delay={450 + index * 50}>
+                  <View
                     style={[
-                      styles.productName,
-                      isComplete && styles.productNameComplete,
+                      styles.productItem,
+                      isComplete && styles.productItemComplete,
                     ]}
                   >
-                    {product.name}
-                  </Text>
-                  <Text style={styles.productCount}>
-                    {product.scanned}/{product.required}
-                  </Text>
-                </View>
-                {isComplete && (
-                  <Ionicons name="checkmark-circle" size={24} color={COLORS.success} />
-                )}
-                {product.requiresExpiry && !isComplete && (
-                  <View style={styles.expiryBadge}>
-                    <Text style={styles.expiryBadgeText}>📅</Text>
+                    <Text style={styles.productIcon}>{product.icon}</Text>
+                    <View style={styles.productInfo}>
+                      <Text
+                        style={[
+                          styles.productName,
+                          isComplete && styles.productNameComplete,
+                        ]}
+                      >
+                        {product.name}
+                      </Text>
+                      <Text style={styles.productCount}>
+                        {product.scanned}/{product.required}
+                      </Text>
+                    </View>
+                    {isComplete && (
+                      <Ionicons name="checkmark-circle" size={24} color={COLORS.success} />
+                    )}
+                    {product.requiresExpiry && !isComplete && (
+                      <View style={styles.expiryBadge}>
+                        <Text style={styles.expiryBadgeText}>📅</Text>
+                      </View>
+                    )}
                   </View>
-                )}
-              </View>
-            );
-          })}
-        </View>
+                </FadeInView>
+              );
+            })}
+          </View>
+        </FadeInView>
 
         {/* Start Button */}
         {!timerStarted && (
-          <TouchableOpacity
-            style={[
-              styles.startButton,
-              drawerData.drawer.assembly_started_at && styles.continueButton,
-            ]}
-            onPress={handleStartAssembly}
-          >
-            <Ionicons name="play-circle" size={24} color={COLORS.textInverse} />
-            <Text style={styles.startButtonText}>
-              {drawerData.drawer.assembly_started_at ? 'CONTINUAR ENSAMBLAJE' : 'INICIAR ENSAMBLAJE'}
-            </Text>
-          </TouchableOpacity>
+          <FadeInView delay={500}>
+            <TouchableOpacity
+              style={[
+                styles.startButton,
+                drawerData.drawer.assembly_started_at && styles.continueButton,
+              ]}
+              onPress={handleStartAssembly}
+            >
+              <Ionicons name="play-circle" size={24} color={COLORS.textInverse} />
+              <Text style={styles.startButtonText}>
+                {drawerData.drawer.assembly_started_at ? 'CONTINUAR ENSAMBLAJE' : 'INICIAR ENSAMBLAJE'}
+              </Text>
+            </TouchableOpacity>
+          </FadeInView>
         )}
       </ScrollView>
 

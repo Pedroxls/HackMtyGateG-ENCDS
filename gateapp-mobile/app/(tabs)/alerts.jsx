@@ -13,6 +13,7 @@ import { COLORS } from '../../src/constants/colors';
 import { supabase } from '../../src/services/supabase';
 import { parseISODateLocal, formatExpiryDate } from '../../src/utils/dateValidation';
 import LoadingScreen from '../../src/components/common/LoadingScreen';
+import FadeInView from '../../src/components/common/FadeInView';
 
 export default function AlertsScreen() {
   const [alerts, setAlerts] = useState([]);
@@ -298,49 +299,61 @@ export default function AlertsScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Alertas</Text>
-        <Text style={styles.headerSubtitle}>Productos escaneados con fecha de caducidad</Text>
-      </View>
+      <FadeInView duration={300}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Alertas</Text>
+          <Text style={styles.headerSubtitle}>Productos escaneados con fecha de caducidad</Text>
+        </View>
+      </FadeInView>
 
       {/* Filter Tabs */}
-      <View style={styles.filterContainer}>
-        <TouchableOpacity
-          style={[styles.filterTab, activeFilter === 'all' && styles.filterTabActive]}
-          onPress={() => setActiveFilter('all')}
-        >
-          <Text style={[styles.filterText, activeFilter === 'all' && styles.filterTextActive]}>
-            Todos ({getFilterCount('all')})
-          </Text>
-        </TouchableOpacity>
+      <FadeInView delay={100}>
+        <View style={styles.filterContainer}>
+          <TouchableOpacity
+            style={[styles.filterTab, activeFilter === 'all' && styles.filterTabActive]}
+            onPress={() => setActiveFilter('all')}
+          >
+            <Text style={[styles.filterText, activeFilter === 'all' && styles.filterTextActive]}>
+              Todos ({getFilterCount('all')})
+            </Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.filterTab, activeFilter === 'expired' && styles.filterTabActive]}
-          onPress={() => setActiveFilter('expired')}
-        >
-          <Text style={[styles.filterText, activeFilter === 'expired' && styles.filterTextActive]}>
-            Caducados ({getFilterCount('expired')})
-          </Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.filterTab, activeFilter === 'expired' && styles.filterTabActive]}
+            onPress={() => setActiveFilter('expired')}
+          >
+            <Text style={[styles.filterText, activeFilter === 'expired' && styles.filterTextActive]}>
+              Caducados ({getFilterCount('expired')})
+            </Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.filterTab, activeFilter === 'expiring' && styles.filterTabActive]}
-          onPress={() => setActiveFilter('expiring')}
-        >
-          <Text style={[styles.filterText, activeFilter === 'expiring' && styles.filterTextActive]}>
-            Próximos ({getFilterCount('expiring')})
-          </Text>
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity
+            style={[styles.filterTab, activeFilter === 'expiring' && styles.filterTabActive]}
+            onPress={() => setActiveFilter('expiring')}
+          >
+            <Text style={[styles.filterText, activeFilter === 'expiring' && styles.filterTextActive]}>
+              Próximos ({getFilterCount('expiring')})
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </FadeInView>
 
       {/* Alerts List */}
       <FlatList
         data={filteredAlerts}
-        renderItem={renderAlert}
+        renderItem={({ item, index }) => (
+          <FadeInView delay={200 + index * 50}>
+            {renderAlert({ item })}
+          </FadeInView>
+        )}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        ListEmptyComponent={renderEmptyState}
+        ListEmptyComponent={() => (
+          <FadeInView delay={200}>
+            {renderEmptyState()}
+          </FadeInView>
+        )}
       />
     </SafeAreaView>
   );
