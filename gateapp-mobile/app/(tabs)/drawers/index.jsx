@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, FlatList } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { COLORS } from '../../../src/constants/colors';
 import { SearchBar } from '../../../src/components/common';
 import { DrawerCard, FilterTabs } from '../../../src/components/drawer';
+import { getActiveDrawers } from '../../../src/services/supabaseService';
 
 // Mock data - esto se reemplazará con datos de Supabase
 const MOCK_DRAWERS = [
@@ -67,9 +68,68 @@ export default function DrawersScreen() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('all');
+  const [drawers, setDrawers] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Cargar cajones desde Supabase
+  useEffect(() => {
+    loadDrawers();
+  }, []);
+
+  const loadDrawers = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await getActiveDrawers();
+
+      if (error) {
+        console.error('Error loading drawers:', error);
+        Alert.alert('Error', 'No se pudieron cargar los cajones');
+        return;
+      }
+
+      // Transformar datos de Supabase al formato de la app
+      const transformedDrawers = data?.map((drawer) => {
+        const totalItems = drawer.drawer_content?.reduce(
+          (sum, content) => sum + content.quantity,
+          0
+        ) || 0;
+        const itemsCompleted = drawer.scanned_products?.length || 0;
+        const progress = totalItems > 0 ? (itemsCompleted / totalItems) * 100 : 0;
+
+        // Determinar status basado en progreso
+        let status = 'pending';
+        if (drawer.verified) {
+          status = 'completed';
+        } else if (progress > 0) {
+          status = 'in_progress';
+        }
+
+        return {
+          id: drawer.id,
+          flightNumber: drawer.flights?.flight_number || 'N/A',
+          destination: drawer.flights?.route?.split('-')[1] || 'N/A',
+          flightClass: drawer.flights?.flight_type || 'Economy',
+          status,
+          progress: Math.round(progress),
+          itemsCompleted,
+          totalItems,
+          estimatedTime: drawer.estimated_build_time_min
+            ? `${drawer.estimated_build_time_min} min`
+            : undefined,
+        };
+      }) || [];
+
+      setDrawers(transformedDrawers);
+    } catch (error) {
+      console.error('Error in loadDrawers:', error);
+      Alert.alert('Error', 'Error cargando cajones');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Filtrar cajones
-  const filteredDrawers = MOCK_DRAWERS.filter((drawer) => {
+  const filteredDrawers = drawers.filter((drawer) => {
     // Filtro de búsqueda
     const matchesSearch =
       drawer.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -85,10 +145,10 @@ export default function DrawersScreen() {
 
   // Contar por estado
   const counts = {
-    all: MOCK_DRAWERS.length,
-    pending: MOCK_DRAWERS.filter((d) => d.status === 'pending').length,
-    in_progress: MOCK_DRAWERS.filter((d) => d.status === 'in_progress').length,
-    completed: MOCK_DRAWERS.filter((d) => d.status === 'completed').length,
+    all: drawers.length,
+    pending: drawers.filter((d) => d.status === 'pending').length,
+    in_progress: drawers.filter((d) => d.status === 'in_progress').length,
+    completed: drawers.filter((d) => d.status === 'completed').length,
   };
 
   const handleDrawerPress = (drawer) => {
@@ -122,23 +182,32 @@ export default function DrawersScreen() {
       />
 
       {/* List */}
-      <FlatList
-        data={filteredDrawers}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <DrawerCard drawer={item} onPress={() => handleDrawerPress(item)} />
-        )}
-        contentContainerStyle={styles.listContent}
-        ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyIcon}>📦</Text>
-            <Text style={styles.emptyText}>No se encontraron cajones</Text>
-            <Text style={styles.emptySubtext}>
-              Intenta con otro filtro o búsqueda
-            </Text>
-          </View>
-        }
-      />
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+          <Text style={styles.loadingText}>Cargando cajones...</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={filteredDrawers}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <DrawerCard drawer={item} onPress={() => handleDrawerPress(item)} />
+          )}
+          contentContainerStyle={styles.listContent}
+          onRefresh={loadDrawers}
+          refreshing={loading}
+          ListEmptyComponent={
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyIcon}>📦</Text>
+              <Text style={styles.emptyText}>No se encontraron cajones</Text>
+              <Text style={styles.emptySubtext}>
+                Intenta con otro filtro o búsqueda
+              </Text>
+            </View>
+          }
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -185,5 +254,16 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.textSecondary,
     textAlign: 'center',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: COLORS.textSecondary,
   },
 });

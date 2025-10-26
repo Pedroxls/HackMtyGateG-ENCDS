@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Modal, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -9,6 +9,7 @@ import { Dimensions } from 'react-native';
 import { COLORS } from '../../../src/constants/colors';
 import { processExpiryDateOCR } from '../../../src/services/ocrService';
 import { validateExpiryDate, formatExpiryDate } from '../../../src/utils/dateValidation';
+import { getDrawerById, saveScannedProduct } from '../../../src/services/supabaseService';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -76,18 +77,95 @@ export default function DrawerDetailScreen() {
   const [processing, setProcessing] = useState(false);
   const [ocrResult, setOcrResult] = useState(null);
   const [products, setProducts] = useState(null);
+  const [drawerData, setDrawerData] = useState(null);
+  const [loading, setLoading] = useState(true);
   const cameraRef = useRef(null);
   const [permission, requestPermission] = useCameraPermissions();
 
-  // Obtener datos del cajón (mock)
-  const drawerData = MOCK_DRAWER_PRODUCTS[id];
+  // Cargar datos del drawer desde Supabase
+  useEffect(() => {
+    loadDrawerData();
+  }, [id]);
 
-  // Inicializar productos desde mock data
-  React.useEffect(() => {
-    if (drawerData && !products) {
-      setProducts(drawerData.products);
+  const loadDrawerData = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await getDrawerById(id);
+
+      if (error) {
+        console.error('Error loading drawer:', error);
+        Alert.alert('Error', 'No se pudo cargar el cajón');
+        return;
+      }
+
+      if (!data) {
+        Alert.alert('Error', 'Cajón no encontrado');
+        return;
+      }
+
+      // Transformar datos de Supabase al formato de la app
+      const transformedData = {
+        drawer: {
+          id: data.id,
+          flightNumber: data.flights?.flight_number || 'N/A',
+          destination: data.flights?.route?.split('-')[1] || 'N/A',
+          flightClass: data.flights?.flight_type || 'Economy',
+          departureTime: data.flights?.arrival_time
+            ? new Date(data.flights.arrival_time).toLocaleTimeString('es-MX', {
+                hour: '2-digit',
+                minute: '2-digit'
+              })
+            : 'N/A',
+          estimatedTime: data.estimated_build_time_min
+            ? `${data.estimated_build_time_min} min`
+            : 'N/A',
+        },
+        products: data.drawer_content?.map((content) => ({
+          id: content.products.id,
+          name: content.products.name,
+          icon: getCategoryIcon(content.products.category),
+          required: content.quantity,
+          scanned: data.scanned_products?.filter(
+            (sp) => sp.product_id === content.products.id
+          ).length || 0,
+          requiresExpiry: content.products.expiration_days > 0,
+          sku: content.products.sku,
+        })) || [],
+      };
+
+      setDrawerData(transformedData);
+      setProducts(transformedData.products);
+    } catch (error) {
+      console.error('Error in loadDrawerData:', error);
+      Alert.alert('Error', 'Error cargando datos del cajón');
+    } finally {
+      setLoading(false);
     }
-  }, [drawerData]);
+  };
+
+  // Helper para mapear categoría a emoji
+  const getCategoryIcon = (category) => {
+    const icons = {
+      'Bebidas': '🧃',
+      'Snacks': '🥜',
+      'Utensilios': '🍴',
+      'Desechables': '📄',
+      'Agua': '💧',
+      'Café': '☕',
+    };
+    return icons[category] || '📦';
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.errorContainer}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+          <Text style={styles.processingText}>Cargando cajón...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   if (!drawerData) {
     return (
@@ -220,8 +298,26 @@ export default function DrawerDetailScreen() {
     }
   };
 
-  const handleProductScanned = (ocrData) => {
+  const handleProductScanned = async (ocrData) => {
     if (!currentProduct) return;
+
+    // Guardar en Supabase
+    const { data, error } = await saveScannedProduct({
+      drawerId: id,
+      productId: currentProduct.id,
+      expiryDate: ocrData?.expiryDate || null,
+      lotNumber: ocrData?.lotNumber || null,
+      confidence: ocrResult?.confidence || 100,
+      status: ocrResult?.validation?.status || 'ok',
+    });
+
+    if (error) {
+      console.error('Error saving scanned product:', error);
+      Alert.alert('Error', 'No se pudo guardar el producto escaneado');
+      return;
+    }
+
+    console.log('✅ Producto guardado en Supabase:', data);
 
     // Actualizar contador del producto actual
     setProducts((prevProducts) =>
@@ -235,12 +331,12 @@ export default function DrawerDetailScreen() {
     setShowScanner(false);
     setOcrResult(null);
 
-    // TODO: Guardar en Supabase
-    console.log('Producto escaneado:', {
-      productId: currentProduct.id,
-      drawerId: id,
-      ...ocrData,
-    });
+    // Mostrar feedback de éxito
+    Alert.alert(
+      '✅ Producto Registrado',
+      `${currentProduct.name} escaneado correctamente`,
+      [{ text: 'OK' }]
+    );
   };
 
   const handleManualEntry = () => {
