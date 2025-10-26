@@ -11,10 +11,12 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import { useAuthStore } from '../../store/authStore';
 import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
+import FadeInView from '../../components/common/FadeInView';
 import {
   getEmployeeById,
   updateEmployeeById,
@@ -237,7 +239,9 @@ export default function ProfileScreen() {
 
     return (
       <View style={styles.detailRow}>
-        <Text style={styles.detailIcon}>{icon}</Text>
+        <View style={styles.detailIconContainer}>
+          <Ionicons name={icon} size={20} color={COLORS.primary} />
+        </View>
         <View style={styles.detailContent}>
           <Text style={styles.detailLabel}>{label}</Text>
           <Text style={styles.detailValue}>{displayValue}</Text>
@@ -274,11 +278,11 @@ export default function ProfileScreen() {
 
     return (
       <>
-        <DetailRow icon="👤" label="Nombre" value={displayName} />
-        <DetailRow icon="🏷️" label="Rol" value={roleLabel} />
-        <DetailRow icon="🛫" label="Base" value={baseValue} />
-        <DetailRow icon="🔢" label="Número de empleado" value={numberValue} />
-        <DetailRow icon="🕒" label="Turno" value={shiftValue} />
+        <DetailRow icon="person-outline" label="Nombre" value={displayName} />
+        <DetailRow icon="pricetag-outline" label="Rol" value={roleLabel} />
+        <DetailRow icon="airplane-outline" label="Base" value={baseValue} />
+        <DetailRow icon="keypad-outline" label="Número de empleado" value={numberValue} />
+        <DetailRow icon="time-outline" label="Turno" value={shiftValue} />
       </>
     );
   };
@@ -305,85 +309,95 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.headerCard}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{getInitials(displayName)}</Text>
+        <FadeInView duration={300}>
+          <View style={styles.headerCard}>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>{getInitials(displayName)}</Text>
+            </View>
+
+            <Text style={styles.name}>{displayName}</Text>
+            <Text style={styles.role}>{roleLabel}</Text>
+            <Text style={styles.email}>{user.email}</Text>
+
+            <View style={styles.headerActions}>
+              <Button
+                title="Editar perfil"
+                variant="secondary"
+                size="small"
+                onPress={() => setEditModalVisible(true)}
+                disabled={loadingEmployee || !!employeeError}
+              />
+              <Button
+                title="Ver actividad"
+                variant="outline"
+                size="small"
+                onPress={() =>
+                  Alert.alert(
+                    'Próximamente',
+                    'La vista de actividad estará disponible en una siguiente versión.',
+                  )
+                }
+              />
+            </View>
           </View>
+        </FadeInView>
 
-          <Text style={styles.name}>{displayName}</Text>
-          <Text style={styles.role}>{roleLabel}</Text>
-          <Text style={styles.email}>{user.email}</Text>
+        <FadeInView delay={100}>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Información personal</Text>
+            {renderEmployeeSection()}
+          </View>
+        </FadeInView>
 
-          <View style={styles.headerActions}>
-            <Button
-              title="Editar perfil"
-              variant="secondary"
-              size="small"
-              onPress={() => setEditModalVisible(true)}
-              disabled={loadingEmployee || !!employeeError}
-            />
-            <Button
-              title="Ver actividad"
-              variant="outline"
-              size="small"
+        <FadeInView delay={200}>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Seguridad</Text>
+            <TouchableOpacity
+              style={styles.actionRow}
+              onPress={handlePasswordReset}
+              activeOpacity={0.7}
+            >
+              <View>
+                <Text style={styles.actionTitle}>Restablecer contraseña</Text>
+                <Text style={styles.actionSubtitle}>
+                  Te enviaremos un correo con instrucciones.
+                </Text>
+              </View>
+              <Text style={styles.actionIcon}>›</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.actionRow}
               onPress={() =>
                 Alert.alert(
-                  'Próximamente',
-                  'La vista de actividad estará disponible en una siguiente versión.',
+                  'Centro de ayuda',
+                  'Escríbenos a support@gateapp.mx para recibir asistencia.',
                 )
               }
-            />
+            >
+              <View>
+                <Text style={styles.actionTitle}>Contactar soporte</Text>
+                <Text style={styles.actionSubtitle}>support@gateapp.mx</Text>
+              </View>
+              <Text style={styles.actionIcon}>›</Text>
+            </TouchableOpacity>
           </View>
-        </View>
+        </FadeInView>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Información personal</Text>
-          {renderEmployeeSection()}
-        </View>
+        <FadeInView delay={300}>
+          <Button
+            title="Cerrar sesión"
+            variant="error"
+            size="large"
+            onPress={handleLogout}
+            style={styles.logoutButton}
+            loading={signingOut}
+          />
+        </FadeInView>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Seguridad</Text>
-          <TouchableOpacity
-            style={styles.actionRow}
-            onPress={handlePasswordReset}
-            activeOpacity={0.7}
-          >
-            <View>
-              <Text style={styles.actionTitle}>Restablecer contraseña</Text>
-              <Text style={styles.actionSubtitle}>
-                Te enviaremos un correo con instrucciones.
-              </Text>
-            </View>
-            <Text style={styles.actionIcon}>›</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.actionRow}
-            onPress={() =>
-              Alert.alert(
-                'Centro de ayuda',
-                'Escríbenos a support@gateapp.mx para recibir asistencia.',
-              )
-            }
-          >
-            <View>
-              <Text style={styles.actionTitle}>Contactar soporte</Text>
-              <Text style={styles.actionSubtitle}>support@gateapp.mx</Text>
-            </View>
-            <Text style={styles.actionIcon}>›</Text>
-          </TouchableOpacity>
-        </View>
-
-        <Button
-          title="Cerrar sesión"
-          variant="error"
-          size="large"
-          onPress={handleLogout}
-          style={styles.logoutButton}
-          loading={signingOut}
-        />
-
-        <Text style={styles.version}>v1.0.0 · HackMTY 2025 · Build mobile</Text>
+        <FadeInView delay={400}>
+          <Text style={styles.version}>v1.0.0 · HackMTY 2025 · Build mobile</Text>
+        </FadeInView>
       </ScrollView>
 
       <Modal
@@ -558,8 +572,13 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
   },
-  detailIcon: {
-    fontSize: 18,
+  detailIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: COLORS.backgroundSecondary,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginRight: 12,
   },
   detailContent: {
