@@ -2,8 +2,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import DashboardLayout from './layouts/dashboardlayout.jsx'
 import Dashboard from './pages/dashboard.jsx'
-import Reports from './pages/reports.jsx'
-import Forecast from './pages/forecast.jsx'
+import ReportsPage from './pages/ReportsPage'
 import Settings from './pages/settings.jsx'
 import ProductsPage from './pages/ProductsPage.jsx'
 import FlightsPage from './pages/FlightsPage.jsx'
@@ -12,6 +11,7 @@ import ErrorBoundary from './components/error.jsx'
 import { AuthProvider, RequireAuth, useAuth } from './context/authContext.jsx'
 import Login from './pages/login.jsx'
 import Register from './pages/register.jsx'
+import ForecastPage from './pages/ForecastPage.jsx'
 
 // Rutas protegidas: si no hay sesión -> /login
 function ProtectedRoutes() {
@@ -33,8 +33,8 @@ export default function App() {
           <Route element={<ProtectedRoutes />}>
             <Route path="/" element={<Dashboard />} />
             <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/reports" element={<Reports />} />
-            <Route path="/forecast" element={<Forecast />} />
+            <Route path="/forecast" element={<ForecastPage />} />
+            <Route path="/reports" element={<ReportsPage />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/products" element={<ProductsPage />} />
             <Route path="/flights" element={<FlightsPage />} />

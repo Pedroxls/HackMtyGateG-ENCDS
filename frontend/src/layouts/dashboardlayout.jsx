@@ -1,5 +1,4 @@
 // src/layouts/DashboardLayout.jsx
-// Layout principal: Sidebar (Drawer) + Topbar (AppBar) + Contenido (Outlet)
 
 import { Outlet, useLocation } from 'react-router-dom'
 import { useMemo } from 'react'
@@ -35,7 +34,7 @@ export default function DashboardLayout() {
       { label: 'Productos', to: '/products', icon: <Inventory2RoundedIcon /> },
       { label: 'Vuelos', to: '/flights', icon: <FlightTakeoffRoundedIcon /> },
       { label: 'Empleados', to: '/employees', icon: <GroupsRoundedIcon /> },
-      { label: 'Ajustes', to: '/settings', icon: <SettingsRoundedIcon /> },
+      { label: 'Ajustes', to: '/settings', icon: <SettingsRoundedIcon /> }
     ],
     []
   )
@@ -44,7 +43,6 @@ export default function DashboardLayout() {
     <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: '#f6f7fb' }}>
       <CssBaseline />
 
-      {/* Topbar fija */}
       <AppBar
         position="fixed"
         sx={{
@@ -59,7 +57,6 @@ export default function DashboardLayout() {
         <Topbar title={getTitleFromPath(pathname)} />
       </AppBar>
 
-      {/* Sidebar fija a la izquierda */}
       <Drawer
         variant="permanent"
         sx={{
@@ -82,7 +79,6 @@ export default function DashboardLayout() {
         <Sidebar items={navItems} />
       </Drawer>
 
-      {/* Contenido: deja espacio para AppBar (Toolbar) */}
       <Box component="main" sx={{ flexGrow: 1, ml: `${drawerWidth}px`, py: 4 }}>
         <Toolbar />
         <Box sx={{ maxWidth: '1200px', px: 3 }}>
@@ -93,7 +89,6 @@ export default function DashboardLayout() {
   )
 }
 
-// Utilidad pequeña para mostrar el título en el Topbar según la ruta
 function getTitleFromPath(path) {
   if (path.startsWith('/forecast')) return 'Predicción'
   if (path.startsWith('/reports')) return 'Reportes'
