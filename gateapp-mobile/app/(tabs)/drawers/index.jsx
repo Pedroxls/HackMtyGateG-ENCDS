@@ -6,6 +6,7 @@ import { COLORS } from '../../../src/constants/colors';
 import { SearchBar } from '../../../src/components/common';
 import { DrawerCard, FilterTabs } from '../../../src/components/drawer';
 import { getActiveDrawers } from '../../../src/services/supabaseService';
+import LoadingScreen from '../../../src/components/common/LoadingScreen';
 
 // Mock data - esto se reemplazará con datos de Supabase
 const MOCK_DRAWERS = [
@@ -181,6 +182,10 @@ export default function DrawersScreen() {
     // Navegar al detalle del cajón
     router.push(`/drawers/${drawer.id}`);
   };
+
+  if (loading) {
+    return <LoadingScreen message="Cargando cajones..." />;
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>

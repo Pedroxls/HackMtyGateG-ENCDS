@@ -1,5 +1,6 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 
 export default function ActiveDrawerCard({ drawer, onPress }) {
@@ -15,11 +16,40 @@ export default function ActiveDrawerCard({ drawer, onPress }) {
     elapsedTime = '0:00',
   } = drawer;
 
+  // Animación de parpadeo
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 0.3,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    pulse.start();
+
+    return () => pulse.stop();
+  }, []);
+
   return (
     <TouchableOpacity style={styles.container} onPress={onPress} activeOpacity={0.8}>
       <View style={styles.header}>
-        <Text style={styles.drawerId}>🟢 DRAWER {id}</Text>
-        <Text style={styles.timer}>⏱ {elapsedTime}</Text>
+        <View style={styles.drawerIdContainer}>
+          <Animated.View style={[styles.pulseDot, { opacity: pulseAnim }]} />
+          <Text style={styles.drawerId}>DRAWER {id}</Text>
+        </View>
+        <View style={styles.timerContainer}>
+          <Ionicons name="time-outline" size={16} color={COLORS.textSecondary} />
+          <Text style={styles.timer}>{elapsedTime}</Text>
+        </View>
       </View>
 
       <View style={styles.info}>
@@ -55,8 +85,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
     borderRadius: 16,
     padding: 20,
-    marginHorizontal: 16,
-    marginBottom: 16,
+    width: 320,
     borderWidth: 2,
     borderColor: COLORS.success,
     shadowColor: COLORS.success,
@@ -71,15 +100,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
+  drawerIdContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  pulseDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: COLORS.success,
+  },
   drawerId: {
     fontSize: 18,
     fontWeight: 'bold',
     color: COLORS.text,
   },
+  timerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
   timer: {
     fontSize: 14,
     fontWeight: '600',
     color: COLORS.textSecondary,
+    fontVariant: ['tabular-nums'],
   },
   info: {
     marginBottom: 16,
