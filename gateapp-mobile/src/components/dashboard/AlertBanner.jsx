@@ -66,7 +66,7 @@ function AlertItem({ alert }) {
 const styles = StyleSheet.create({
   container: {
     backgroundColor: COLORS.background,
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
   },

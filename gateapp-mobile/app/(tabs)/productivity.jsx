@@ -379,7 +379,7 @@ export default function ProductivityScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.backgroundSecondary,
+    backgroundColor: COLORS.background,
   },
   scrollView: {
     flex: 1,

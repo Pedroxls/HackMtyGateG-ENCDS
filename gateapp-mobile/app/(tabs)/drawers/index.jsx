@@ -257,7 +257,7 @@ export default function DrawersScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.backgroundSecondary,
+    backgroundColor: COLORS.background,
   },
   header: {
     paddingHorizontal: 20,
