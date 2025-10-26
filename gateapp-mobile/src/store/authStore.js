@@ -7,6 +7,7 @@ export const useAuthStore = create((set, get) => ({
   session: null,
   loading: true,
   error: null,
+  updatingProfile: false,
 
   // Inicializar sesión
   initialize: async () => {
@@ -131,6 +132,34 @@ export const useAuthStore = create((set, get) => ({
     } catch (error) {
       set({ error: error.message, loading: false });
       console.error('Error en resetPassword:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  // Actualizar metadatos del perfil del usuario
+  updateProfile: async (metadata = {}) => {
+    try {
+      set({ updatingProfile: true, error: null });
+
+      const { data, error } = await supabase.auth.updateUser({
+        data: metadata,
+      });
+
+      if (error) throw error;
+
+      set((state) => ({
+        user: data.user,
+        session: state.session
+          ? { ...state.session, user: data.user }
+          : state.session,
+        updatingProfile: false,
+        error: null,
+      }));
+
+      return { success: true };
+    } catch (error) {
+      set({ updatingProfile: false, error: error.message });
+      console.error('Error en updateProfile:', error);
       return { success: false, error: error.message };
     }
   },
