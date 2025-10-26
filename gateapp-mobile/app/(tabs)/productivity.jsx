@@ -13,8 +13,12 @@ import { COLORS } from '../../src/constants/colors';
 import { supabase } from '../../src/services/supabase';
 import LoadingScreen from '../../src/components/common/LoadingScreen';
 import FadeInView from '../../src/components/common/FadeInView';
+import { AIInsightsCard } from '../../src/components/productivity';
+import { getProductivityInsights } from '../../src/services/productivityService';
+import { useAuthStore } from '../../src/store/authStore';
 
 export default function ProductivityScreen() {
+  const user = useAuthStore(state => state.user);
   const [stats, setStats] = useState({
     today: { drawers: 0, products: 0, avgTime: '0:00' },
     week: { drawers: 0, products: 0, avgTime: '0:00' },
@@ -27,6 +31,11 @@ export default function ProductivityScreen() {
   const [selectedPeriod, setSelectedPeriod] = useState('today'); // 'today', 'week', 'month'
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Estados para AI Insights
+  const [aiInsights, setAiInsights] = useState(null);
+  const [loadingInsights, setLoadingInsights] = useState(false);
+  const [showInsights, setShowInsights] = useState(false);
 
   useEffect(() => {
     loadProductivityData();
@@ -199,6 +208,37 @@ export default function ProductivityScreen() {
     loadProductivityData();
   };
 
+  // Cargar insights con Gemini AI
+  const loadAIInsights = async () => {
+    if (!user?.id) {
+      console.log('⚠️ No user ID available for insights');
+      return;
+    }
+
+    try {
+      setLoadingInsights(true);
+      setShowInsights(true);
+      console.log('🤖 Cargando AI insights...');
+
+      const result = await getProductivityInsights(user.id, 30); // Últimos 30 días
+
+      if (result.success) {
+        setAiInsights(result.data);
+        console.log('✅ Insights cargados:', result.cached ? '(cached)' : '(fresh)');
+      } else {
+        console.error('❌ Error cargando insights:', result.error);
+        setAiInsights({
+          has_data: false,
+          message: 'No se pudieron cargar los insights'
+        });
+      }
+    } catch (error) {
+      console.error('❌ Error en loadAIInsights:', error);
+    } finally {
+      setLoadingInsights(false);
+    }
+  };
+
   const getCurrentStats = () => {
     switch (selectedPeriod) {
       case 'today':
@@ -313,8 +353,37 @@ export default function ProductivityScreen() {
           </View>
         </FadeInView>
 
+        {/* AI Insights Button */}
+        {!showInsights && (
+          <FadeInView delay={350}>
+            <TouchableOpacity
+              style={styles.aiInsightsButton}
+              onPress={loadAIInsights}
+              disabled={loadingInsights}
+            >
+              <View style={styles.aiInsightsButtonContent}>
+                <Ionicons name="sparkles" size={24} color="#fff" />
+                <Text style={styles.aiInsightsButtonText}>
+                  Ver Análisis con IA
+                </Text>
+                <Ionicons name="arrow-forward" size={20} color="#fff" />
+              </View>
+            </TouchableOpacity>
+          </FadeInView>
+        )}
+
+        {/* AI Insights Card */}
+        {showInsights && (
+          <FadeInView delay={400}>
+            <AIInsightsCard
+              insights={aiInsights}
+              loading={loadingInsights}
+            />
+          </FadeInView>
+        )}
+
         {/* Total Stats */}
-        <FadeInView delay={400}>
+        <FadeInView delay={showInsights ? 500 : 400}>
           <View style={styles.totalStatsCard}>
             <Text style={styles.totalStatsTitle}>Estadísticas Totales</Text>
             <View style={styles.totalStatsGrid}>
@@ -599,5 +668,31 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: COLORS.textSecondary,
     fontStyle: 'italic',
+  },
+  // AI Insights Button
+  aiInsightsButton: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+    backgroundColor: COLORS.primary,
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  aiInsightsButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    paddingVertical: 18,
+    paddingHorizontal: 24,
+  },
+  aiInsightsButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#fff',
   },
 });

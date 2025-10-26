@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from dotenv import load_dotenv  # <-- nuevo
 from app.api import flight, employee, product, vision
-from app.routes import predict
+from app.routes import predict, productivity
 
 load_dotenv()  # <-- carga variables de entorno desde .env
 
@@ -48,4 +48,5 @@ app.include_router(flight.router)
 app.include_router(employee.router)
 app.include_router(product.router)
 app.include_router(predict.router)
+app.include_router(productivity.router)
 app.include_router(vision.router)
