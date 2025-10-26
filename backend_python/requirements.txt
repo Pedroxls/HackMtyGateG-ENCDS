@@ -4,7 +4,9 @@ python-dotenv
 supabase
 pydantic
 openai
-python-dotenv
-react-simple-maps --legacy-peer-deps
-d3-scale --legacy-peer-deps
-@mui/material @emotion/react @emotion/styled --legacy-peer-deps
+python-multipart
+Pillow
+pytesseract
+python-dateutil
+regex
+google-cloud-vision

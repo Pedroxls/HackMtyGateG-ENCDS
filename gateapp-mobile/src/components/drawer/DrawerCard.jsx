@@ -6,6 +6,7 @@ import { COLORS } from '../../constants/colors';
 export default function DrawerCard({ drawer, onPress }) {
   const {
     id,
+    displayId, // ID legible para mostrar
     flightNumber,
     destination,
     flightClass,
@@ -59,7 +60,7 @@ export default function DrawerCard({ drawer, onPress }) {
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <View style={[styles.statusDot, { backgroundColor: statusConfig.dotColor }]} />
-          <Text style={styles.drawerId}>DRAWER {id}</Text>
+          <Text style={styles.drawerId}>DRAWER {displayId || id}</Text>
         </View>
         <Ionicons name={statusConfig.icon} size={20} color={statusConfig.color} />
       </View>

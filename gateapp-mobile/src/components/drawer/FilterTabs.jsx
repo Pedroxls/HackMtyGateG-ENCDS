@@ -1,21 +1,17 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { COLORS } from '../../constants/colors';
 
 const FILTERS = [
-  { id: 'all', label: 'Todos', count: 0 },
-  { id: 'pending', label: 'Pendientes', count: 0 },
-  { id: 'in_progress', label: 'En Progreso', count: 0 },
-  { id: 'completed', label: 'Completados', count: 0 },
+  { id: 'all', label: 'Todos' },
+  { id: 'pending', label: 'Pendientes' },
+  { id: 'in_progress', label: 'En Progreso' },
+  { id: 'completed', label: 'Completados' },
 ];
 
 export default function FilterTabs({ activeFilter, onFilterChange, counts = {} }) {
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={styles.container}
-    >
+    <View style={styles.container}>
       {FILTERS.map((filter) => {
         const isActive = activeFilter === filter.id;
         const count = counts[filter.id] || 0;
@@ -23,70 +19,76 @@ export default function FilterTabs({ activeFilter, onFilterChange, counts = {} }
         return (
           <TouchableOpacity
             key={filter.id}
-            style={[styles.tab, isActive && styles.tabActive]}
+            style={[styles.tab, !isActive && styles.tabInactive]}
             onPress={() => onFilterChange(filter.id)}
-            activeOpacity={0.7}
+            activeOpacity={0.85}
           >
-            <Text style={[styles.label, isActive && styles.labelActive]}>
+            <Text style={styles.label} numberOfLines={1}>
               {filter.label}
             </Text>
-            {count > 0 && (
-              <View style={[styles.badge, isActive && styles.badgeActive]}>
-                <Text style={[styles.badgeText, isActive && styles.badgeTextActive]}>
-                  {count}
-                </Text>
-              </View>
-            )}
+
+            <View
+              style={[
+                styles.badge,
+                count === 0 && styles.badgeHidden,
+                !isActive && styles.badgeInactive,
+              ]}
+            >
+              <Text style={styles.badgeText}>{count}</Text>
+            </View>
           </TouchableOpacity>
         );
       })}
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    flexDirection: 'row',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    gap: 8,
+    gap: 12,
   },
   tab: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: COLORS.backgroundSecondary,
-    gap: 6,
-  },
-  tabActive: {
+    justifyContent: 'center',
     backgroundColor: COLORS.primary,
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    gap: 8,
+    minHeight: 40,
+  },
+  tabInactive: {
+    opacity: 0.55,
   },
   label: {
+    flexShrink: 1,
     fontSize: 14,
     fontWeight: '600',
-    color: COLORS.textSecondary,
-  },
-  labelActive: {
     color: COLORS.textInverse,
   },
   badge: {
-    backgroundColor: COLORS.background,
+    minWidth: 24,
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 10,
-    minWidth: 24,
+    borderRadius: 12,
     alignItems: 'center',
-  },
-  badgeActive: {
+    justifyContent: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  badgeInactive: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  badgeHidden: {
+    opacity: 0,
   },
   badgeText: {
     fontSize: 12,
-    fontWeight: 'bold',
-    color: COLORS.text,
-  },
-  badgeTextActive: {
+    fontWeight: '700',
     color: COLORS.textInverse,
   },
 });
