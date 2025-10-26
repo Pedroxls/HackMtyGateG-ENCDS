@@ -1,21 +1,33 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { COLORS } from '../../constants/colors';
 
 export default function AlertBanner({ alerts = [] }) {
+  const router = useRouter();
+
   if (!alerts || alerts.length === 0) return null;
+
+  const handleViewAllAlerts = () => {
+    router.push('/(tabs)/alerts');
+  };
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <TouchableOpacity
+        style={styles.header}
+        onPress={handleViewAllAlerts}
+        activeOpacity={0.7}
+      >
         <View style={styles.headerContent}>
           <Ionicons name="notifications" size={18} color={COLORS.text} />
           <Text style={styles.headerText}>
             ALERTAS ACTIVAS ({alerts.length})
           </Text>
         </View>
-      </View>
+        <Ionicons name="chevron-forward" size={20} color={COLORS.textSecondary} />
+      </TouchableOpacity>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -73,6 +85,9 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: 16,
     marginBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   headerContent: {
     flexDirection: 'row',

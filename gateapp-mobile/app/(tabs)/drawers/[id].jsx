@@ -15,8 +15,12 @@ import {
   startDrawerAssembly,
   pauseDrawerAssembly
 } from '../../../src/services/supabaseService';
+import { addToQuarantine } from '../../../src/services/quarantineService';
 import LoadingScreen from '../../../src/components/common/LoadingScreen';
 import FadeInView from '../../../src/components/common/FadeInView';
+import { EstimationCard, PerformanceComparison } from '../../../src/components/productivity';
+import { estimateBuildTime } from '../../../src/services/productivityService';
+import { useAuthStore } from '../../../src/store/authStore';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -79,6 +83,7 @@ const MOCK_DRAWER_PRODUCTS = {
 export default function DrawerDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
+  const user = useAuthStore(state => state.user);
   const [timerStarted, setTimerStarted] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [showScanner, setShowScanner] = useState(false);
@@ -90,6 +95,10 @@ export default function DrawerDetailScreen() {
   const cameraRef = useRef(null);
   const timerIntervalRef = useRef(null);
   const [permission, requestPermission] = useCameraPermissions();
+
+  // Estados para Productivity ML
+  const [timeEstimation, setTimeEstimation] = useState(null);
+  const [loadingEstimation, setLoadingEstimation] = useState(false);
 
   // Cargar datos del drawer desde Supabase
   useEffect(() => {
@@ -211,6 +220,71 @@ export default function DrawerDetailScreen() {
     }
   };
 
+  // Cargar estimación de tiempo con ML
+  const loadTimeEstimation = async () => {
+    if (!drawerData) return;
+
+    try {
+      setLoadingEstimation(true);
+
+      // Usar productos de drawerData
+      const productsList = products || drawerData.products || [];
+      const itemCount = productsList.length;
+      const flightType = drawerData.drawer?.flightClass || 'Economy';
+
+      console.log('🔍 Params para estimación:', { itemCount, flightType });
+
+      // Validar que tenemos datos válidos
+      if (itemCount === 0 || !flightType) {
+        console.log('⚠️ Datos insuficientes para estimación');
+        setLoadingEstimation(false);
+        return;
+      }
+
+      // Obtener experiencia del empleado si está disponible
+      let employeeExperience = null;
+      // Aquí podrías calcular meses de experiencia desde user.created_at
+      // Por ahora usamos null para usar valor por defecto
+
+      const result = await estimateBuildTime({
+        itemCount,
+        flightType,
+        employeeExperience
+      });
+
+      if (result.success) {
+        setTimeEstimation(result.data);
+        console.log('✅ Estimación cargada:', result.data);
+      } else {
+        // Si falló, usar fallback que ya viene en result.data
+        if (result.fallback) {
+          setTimeEstimation(result.data);
+          console.log('⚠️ Usando estimación offline');
+        }
+      }
+    } catch (error) {
+      console.error('Error loading estimation:', error);
+      // Usar fallback offline en caso de error
+      const fallbackEstimate = {
+        estimated_time_minutes: 15,
+        estimated_time_seconds: 900,
+        time_range: { min_minutes: 12.8, max_minutes: 17.3 },
+        confidence: 'low',
+        model_type: 'offline_fallback'
+      };
+      setTimeEstimation(fallbackEstimate);
+    } finally {
+      setLoadingEstimation(false);
+    }
+  };
+
+  // Cargar estimación cuando se cargan los datos
+  useEffect(() => {
+    if (drawerData) {
+      loadTimeEstimation();
+    }
+  }, [drawerData]);
+
   // Helper para mapear categoría a emoji
   const getCategoryIcon = (category) => {
     const icons = {
@@ -300,6 +374,152 @@ export default function DrawerDetailScreen() {
     setShowScanner(false);
     setOcrResult(null);
     setProcessing(false);
+  };
+
+  const handleManualDateEntry = () => {
+    Alert.prompt(
+      'Ingresar Fecha de Vencimiento',
+      'Formato: DD/MM/YYYY (ej: 15/03/2025)',
+      [
+        {
+          text: 'Cancelar',
+          style: 'cancel',
+          onPress: () => setShowScanner(true)
+        },
+        {
+          text: 'Guardar',
+          onPress: (dateString) => {
+            if (!dateString || !dateString.trim()) {
+              Alert.alert('Error', 'Debes ingresar una fecha');
+              setShowScanner(true);
+              return;
+            }
+
+            // Validar formato DD/MM/YYYY
+            const dateRegex = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+            const match = dateString.trim().match(dateRegex);
+
+            if (!match) {
+              Alert.alert('Error', 'Formato inválido. Use DD/MM/YYYY (ej: 15/03/2025)');
+              setShowScanner(true);
+              return;
+            }
+
+            const [, day, month, year] = match;
+            const dateISO = `${year}-${month}-${day}`;
+            const expiryDate = parseISODateLocal(dateISO);
+
+            // Validar que la fecha sea válida
+            if (isNaN(expiryDate.getTime())) {
+              Alert.alert('Error', 'Fecha inválida. Verifica el día y mes.');
+              setShowScanner(true);
+              return;
+            }
+
+            const validation = validateExpiryDate(expiryDate);
+
+            console.log('📅 Fecha manual ingresada:', {
+              input: dateString,
+              iso: dateISO,
+              parsed: expiryDate,
+              formatted: formatExpiryDate(dateISO),
+              validation
+            });
+
+            // Guardar resultado como si fuera OCR
+            setOcrResult({
+              date: dateISO,
+              formattedDate: formatExpiryDate(dateISO),
+              validation,
+              lotNumber: null,
+              confidence: 100,
+              rawText: `Manual: ${dateString}`,
+              manualEntry: true
+            });
+
+            // Mostrar resultado
+            setProcessing(false);
+          }
+        }
+      ],
+      'plain-text',
+      '',
+      'default'
+    );
+  };
+
+  const handleRejectProduct = async () => {
+    if (!ocrResult || !currentProduct) return;
+
+    const rejectionReason = ocrResult.validation.status === 'expired'
+      ? 'expired'
+      : 'other';
+
+    // La fecha está en ocrResult.date (no expiryDate)
+    const expiryDateValue = ocrResult.date || ocrResult.expiryDate;
+    const expiryFormatted = ocrResult.formattedDate || (expiryDateValue ? formatExpiryDate(parseISODateLocal(expiryDateValue)) : 'fecha desconocida');
+
+    const rejectionDetails = ocrResult.validation.status === 'expired'
+      ? `Producto vencido`
+      : 'Producto rechazado durante inspección';
+
+    console.log('🚫 Rechazando producto:', currentProduct.name);
+    console.log('📅 OCR Result completo:', ocrResult);
+    console.log('📅 Fecha de vencimiento:', expiryDateValue, '→', expiryFormatted);
+
+    try {
+      // Registrar en cuarentena
+      const result = await addToQuarantine({
+        productId: currentProduct.id,
+        productName: currentProduct.name,
+        productCode: currentProduct.code || null,
+        rejectionReason,
+        rejectionDetails,
+        expiryDate: expiryDateValue || null,
+        lotNumber: ocrResult.lotNumber || null,
+        drawerId: drawerData?.drawer?.id || null,
+        drawerNumber: drawerData?.drawer?.drawer_number || id,
+        flightId: drawerData?.drawer?.flight_id || null,
+        rejectedBy: user?.id || null,
+        rejectedByName: user?.name || user?.email || 'Unknown',
+        imageUrl: null // Podríamos agregar la foto del scanner aquí
+      });
+
+      console.log('📦 Drawer guardado:', drawerData?.drawer?.drawer_number || id);
+
+      if (result.success) {
+        Alert.alert(
+          '🚫 Producto Rechazado',
+          `${currentProduct.name} enviado a cuarentena\nRazón: ${rejectionDetails}`,
+          [
+            {
+              text: 'Ver Cuarentena',
+              onPress: () => {
+                handleCloseScanner();
+                router.push('/(tabs)/quarantine');
+              }
+            },
+            {
+              text: 'Continuar',
+              onPress: handleCloseScanner
+            }
+          ]
+        );
+      } else {
+        Alert.alert(
+          '⚠️ Error',
+          'No se pudo registrar el producto en cuarentena',
+          [{ text: 'OK', onPress: handleCloseScanner }]
+        );
+      }
+    } catch (error) {
+      console.error('Error al rechazar producto:', error);
+      Alert.alert(
+        '⚠️ Error',
+        'Hubo un problema al registrar el rechazo',
+        [{ text: 'OK', onPress: handleCloseScanner }]
+      );
+    }
   };
 
   const handleTakePicture = async () => {
@@ -502,6 +722,25 @@ export default function DrawerDetailScreen() {
         </View>
         </FadeInView>
 
+        {/* ML Estimation Card */}
+        <FadeInView delay={150}>
+          <EstimationCard
+            estimation={timeEstimation}
+            loading={loadingEstimation}
+          />
+        </FadeInView>
+
+        {/* Performance Comparison (solo si el timer está activo) */}
+        {timerStarted && timeEstimation && (
+          <FadeInView delay={175}>
+            <PerformanceComparison
+              actualMinutes={elapsedSeconds / 60}
+              estimatedMinutes={timeEstimation.estimated_time_minutes}
+              isComplete={progress === 100}
+            />
+          </FadeInView>
+        )}
+
         {/* Progress */}
         <FadeInView delay={200}>
           <View style={styles.progressCard}>
@@ -687,14 +926,41 @@ export default function DrawerDetailScreen() {
                 size={80}
                 color={ocrResult.validation.color}
               />
-              <Text style={styles.resultDate}>{ocrResult.formattedDate}</Text>
+              <View style={styles.dateRow}>
+                <Text style={styles.resultDate}>{ocrResult.formattedDate}</Text>
+                <TouchableOpacity
+                  style={styles.editDateButton}
+                  onPress={handleManualDateEntry}
+                >
+                  <Ionicons name="pencil" size={18} color={COLORS.primary} />
+                </TouchableOpacity>
+              </View>
+              {ocrResult.manualEntry && (
+                <View style={styles.manualBadge}>
+                  <Ionicons name="create-outline" size={14} color={COLORS.primary} />
+                  <Text style={styles.manualBadgeText}>Fecha corregida</Text>
+                </View>
+              )}
               <View
                 style={[
                   styles.resultBadge,
-                  { backgroundColor: ocrResult.validation.color },
+                  ocrResult.validation.status === 'expired'
+                    ? {
+                        backgroundColor: COLORS.background,
+                        borderWidth: 2,
+                        borderColor: ocrResult.validation.color,
+                      }
+                    : { backgroundColor: ocrResult.validation.color },
                 ]}
               >
-                <Text style={styles.resultBadgeText}>
+                <Text
+                  style={[
+                    styles.resultBadgeText,
+                    ocrResult.validation.status === 'expired' && {
+                      color: COLORS.text,
+                    },
+                  ]}
+                >
                   {ocrResult.validation.message}
                 </Text>
               </View>
@@ -704,9 +970,9 @@ export default function DrawerDetailScreen() {
               {ocrResult.validation.status === 'expired' && (
                 <TouchableOpacity
                   style={styles.rejectButton}
-                  onPress={handleCloseScanner}
+                  onPress={handleRejectProduct}
                 >
-                  <Text style={styles.rejectButtonText}>Rechazar Producto</Text>
+                  <Text style={styles.rejectButtonText}>Enviar a Cuarentena</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -1051,6 +1317,23 @@ const styles = StyleSheet.create({
   scannerFooter: {
     paddingBottom: 40,
     alignItems: 'center',
+    gap: 20,
+  },
+  manualEntryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 25,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  manualEntryText: {
+    color: COLORS.textInverse,
+    fontSize: 14,
+    fontWeight: '600',
   },
   captureButton: {
     width: 80,
@@ -1088,7 +1371,6 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: 'bold',
     color: COLORS.text,
-    marginTop: 20,
   },
   resultBadge: {
     marginTop: 12,
@@ -1100,6 +1382,37 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     color: COLORS.textInverse,
+  },
+  dateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    marginVertical: 16,
+  },
+  editDateButton: {
+    padding: 8,
+    backgroundColor: `${COLORS.primary}15`,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: `${COLORS.primary}30`,
+  },
+  manualBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: `${COLORS.primary}15`,
+    borderRadius: 20,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: `${COLORS.primary}30`,
+  },
+  manualBadgeText: {
+    fontSize: 12,
+    color: COLORS.primary,
+    fontWeight: '600',
   },
   resultLot: {
     fontSize: 18,
