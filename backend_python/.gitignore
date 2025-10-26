@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+*.egg-info/
+dist/
+build/
+
+# Environment variables
+.env
+.env.local
+
+# Google Cloud credentials - IMPORTANTE: NUNCA SUBIR ESTO A GIT
+hackmty-ocr-8cb77c2e61e2.json
+*-credentials.json
+hackmty-ocr-*.json
+
+# OCR debug
+/tmp/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+*.log

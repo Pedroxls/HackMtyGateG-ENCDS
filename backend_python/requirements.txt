@@ -8,3 +8,4 @@ Pillow
 pytesseract
 python-dateutil
 regex
+google-cloud-vision
