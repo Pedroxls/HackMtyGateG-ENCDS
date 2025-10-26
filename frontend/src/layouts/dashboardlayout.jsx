@@ -16,14 +16,14 @@ import AssessmentRoundedIcon from '@mui/icons-material/AssessmentRounded'
 import TimelineRoundedIcon from '@mui/icons-material/TimelineRounded'
 import Inventory2RoundedIcon from '@mui/icons-material/Inventory2Rounded'
 import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded'
-import FlightTakeoffRoundedIcon from '@mui/icons-material/FlightTakeoffRounded'
 import GroupsRoundedIcon from '@mui/icons-material/GroupsRounded'
 import Sidebar from '../components/sidebar.jsx'
 import Topbar from '../components/topbar.jsx'
+import React from 'react'
 
 const drawerWidth = 240
 
-export default function DashboardLayout() {
+export default function DashboardLayout({ children }) {
   const { pathname } = useLocation()
 
   const navItems = useMemo(
@@ -32,7 +32,6 @@ export default function DashboardLayout() {
       { label: 'Reportes', to: '/reports', icon: <AssessmentRoundedIcon /> },
       { label: 'Predicción', to: '/forecast', icon: <TimelineRoundedIcon /> },
       { label: 'Productos', to: '/products', icon: <Inventory2RoundedIcon /> },
-      { label: 'Vuelos', to: '/flights', icon: <FlightTakeoffRoundedIcon /> },
       { label: 'Empleados', to: '/employees', icon: <GroupsRoundedIcon /> },
       { label: 'Ajustes', to: '/settings', icon: <SettingsRoundedIcon /> }
     ],
@@ -40,50 +39,103 @@ export default function DashboardLayout() {
   )
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: '#f6f7fb' }}>
-      <CssBaseline />
+    <Box
+      sx={{
+        minHeight: '100vh',
+        width: '100%',
+        position: 'relative',
+        overflow: 'visible',
+        background: `
+          radial-gradient(circle at 20% 20%, rgba(63,81,181,0.25), transparent 45%),
+          radial-gradient(circle at 80% 80%, rgba(0,150,136,0.20), transparent 45%),
+          linear-gradient(180deg,#ffffff 0%, #e8f1f8 100%)
+        `,
+        '&::before': {
+          content: '""',
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: '100%',
+          background: `
+            radial-gradient(circle at 60% 30%, rgba(33,150,243,0.08), transparent 50%),
+            radial-gradient(circle at 20% 70%, rgba(0,200,83,0.08), transparent 50%)
+          `,
+          pointerEvents: 'none'
+        }
+      }}
+    >
+      {/* contenedor con zIndex superior donde va el layout real */}
+      <Box sx={{ position: 'relative', zIndex: 2, ml: { sm: `${drawerWidth}px` } }}>
+        <CssBaseline />
 
-      <AppBar
-        position="fixed"
-        sx={{
-          width: `calc(100% - ${drawerWidth}px)`,
-          ml: `${drawerWidth}px`,
-          bgcolor: '#fff',
-          color: '#111',
-          boxShadow: 'none',
-          borderBottom: '1px solid #e5e7eb'
-        }}
-      >
-        <Topbar title={getTitleFromPath(pathname)} />
-      </AppBar>
+        <AppBar
+          position="fixed"
+          sx={{
+            width: `calc(100% - ${drawerWidth}px)`,
+            ml: `${drawerWidth}px`,
+            bgcolor: '#fff',
+            color: '#111',
+            boxShadow: 'none',
+            borderBottom: '1px solid #e5e7eb'
+          }}
+        >
+          <Topbar title={getTitleFromPath(pathname)} />
+        </AppBar>
 
-      <Drawer
-        variant="permanent"
-        sx={{
-          width: drawerWidth,
-          flexShrink: 0,
-          '& .MuiDrawer-paper': {
+        <Drawer
+          variant="permanent"
+          sx={{
             width: drawerWidth,
-            boxSizing: 'border-box',
-            borderRight: '1px solid #e5e7eb'
-          },
-        }}
-        open
-      >
-        <Toolbar sx={{ px: 2 }}>
-          <Typography variant="subtitle2" color="text.secondary" sx={{ letterSpacing: 1 }}>
-            SMART INTELLIGENCE
-          </Typography>
-        </Toolbar>
-        <Divider />
-        <Sidebar items={navItems} />
-      </Drawer>
+            flexShrink: 0,
+            '& .MuiDrawer-paper': {
+              width: drawerWidth,
+              boxSizing: 'border-box',
+              borderRight: '1px solid #e5e7eb'
+            },
+          }}
+          open
+        >
+          <Toolbar sx={{ px: 2 }}>
+            <Typography variant="subtitle2" color="text.secondary" sx={{ letterSpacing: 1 }}>
+              SMART INTELLIGENCE
+            </Typography>
+          </Toolbar>
+          <Divider />
+          <Sidebar items={navItems} />
+        </Drawer>
 
-      <Box component="main" sx={{ flexGrow: 1, ml: `${drawerWidth}px`, py: 4 }}>
-        <Toolbar />
-        <Box sx={{ maxWidth: '1200px', px: 3 }}>
-          <Outlet />
+        <Box component="main" sx={{ flexGrow: 1,px :20, py: 4 }}>
+          <Toolbar />
+          <Box sx={{ maxWidth: '1200px' }}>
+            <Outlet />
+          </Box>
         </Box>
+      </Box>
+
+      {/* Asegura que el sidebar/drawer esté por encima del fondo */}
+      <Box component="nav" sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 }, zIndex: 1300 }}>
+        <Drawer
+          variant="permanent"
+          sx={{
+            width: drawerWidth,
+            flexShrink: 0,
+            '& .MuiDrawer-paper': {
+              width: drawerWidth,
+              boxSizing: 'border-box',
+              borderRight: '1px solid #e5e7eb'
+            },
+          }}
+          open
+        >
+          <Toolbar sx={{ px: 2 }}>
+            <Typography variant="subtitle2" color="text.secondary" sx={{ letterSpacing: 1 }}>
+              SMART INTELLIGENCE
+            </Typography>
+          </Toolbar>
+          <Divider />
+          <Sidebar items={navItems} />
+        </Drawer>
       </Box>
     </Box>
   )
