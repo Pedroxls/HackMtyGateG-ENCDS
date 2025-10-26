@@ -15,12 +15,21 @@
     "@mui/icons-material": "^7.3.4",
     "@mui/material": "^7.3.4",
     "@mui/x-data-grid": "^8.15.0",
+    "@react-three/drei": "^10.7.6",
+    "@react-three/fiber": "^9.4.0",
     "axios": "^1.12.2",
     "chart.js": "^4.5.1",
+    "d3": "^7.9.0",
+    "d3-geo": "^3.1.1",
     "react": "^19.1.1",
     "react-chartjs-2": "^5.3.0",
     "react-dom": "^19.1.1",
-    "react-router-dom": "^7.9.4"
+    "react-router-dom": "^7.9.4",
+    "react-simple-maps": "^3.0.0",
+    "react-tooltip": "^5.30.0",
+    "three": "^0.180.0",
+    "three-globe": "^2.44.1",
+    "topojson-client": "^3.1.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.36.0",
