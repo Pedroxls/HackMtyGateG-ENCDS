@@ -328,15 +328,10 @@ export default function ProfileScreen() {
                 disabled={loadingEmployee || !!employeeError}
               />
               <Button
-                title="Ver actividad"
+                title="Ver productividad"
                 variant="outline"
                 size="small"
-                onPress={() =>
-                  Alert.alert(
-                    'Próximamente',
-                    'La vista de actividad estará disponible en una siguiente versión.',
-                  )
-                }
+                onPress={() => router.push('/(tabs)/productivity')}
               />
             </View>
           </View>
