@@ -6,5 +6,5 @@ pydantic
 openai
 python-dotenv
 react-simple-maps --legacy-peer-deps
-d3-scale
-@mui/material @emotion/react @emotion/styled
+d3-scale --legacy-peer-deps
+@mui/material @emotion/react @emotion/styled --legacy-peer-deps
