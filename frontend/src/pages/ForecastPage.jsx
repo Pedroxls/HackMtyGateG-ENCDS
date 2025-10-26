@@ -67,7 +67,7 @@ export default function ForecastPage() {
   }
 
   return (
-    <Box sx={{ width: '100%', maxWidth: 920, px: 2, py: 3 }}>
+    <Box sx={{ width: '100%', maxWidth: 920, py: 3 }}>
       <Typography variant="h5" gutterBottom>
         Predicción de Demanda
       </Typography>
@@ -122,7 +122,16 @@ export default function ForecastPage() {
         <>
           <Box mt={3}>
             {forecastData.map((item, i) => (
-              <Paper key={i} sx={{ p: 2, mb: 2 }}>
+              <Paper
+                sx={{
+                  p: 2,
+                  mb: 2,
+                  '&:hover': {
+                    border: '4px solid #00dc8fff'
+                  }
+                }}
+                key={i}
+              >
                 <Stack direction="row" justifyContent="space-between" alignItems="center">
                   <Box>
                     <Typography fontWeight={600}>{item.product}</Typography>
