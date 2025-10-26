@@ -236,6 +236,51 @@ export async function completeDrawer(drawerId) {
   }
 }
 
+// Iniciar/reanudar ensamblaje de drawer
+export async function startDrawerAssembly(drawerId) {
+  try {
+    const { data, error } = await supabase
+      .from('drawers_assembled')
+      .update({
+        assembly_started_at: new Date().toISOString(),
+        assembly_paused_at: null,
+      })
+      .eq('id', drawerId)
+      .select();
+
+    if (error) throw error;
+
+    return { data: data?.[0] || null, error: null };
+  } catch (error) {
+    console.error('Error starting drawer assembly:', error);
+    return { data: null, error };
+  }
+}
+
+// Pausar ensamblaje de drawer (guardar tiempo transcurrido)
+export async function pauseDrawerAssembly(drawerId, elapsedSeconds) {
+  try {
+    console.log('⏸️ Pausando drawer:', drawerId, 'Tiempo:', elapsedSeconds);
+
+    const { data, error } = await supabase
+      .from('drawers_assembled')
+      .update({
+        assembly_paused_at: new Date().toISOString(),
+        total_assembly_time_sec: elapsedSeconds,
+      })
+      .eq('id', drawerId)
+      .select();
+
+    if (error) throw error;
+
+    console.log('✅ Drawer pausado exitosamente:', data);
+    return { data: data?.[0] || null, error: null };
+  } catch (error) {
+    console.error('❌ Error pausing drawer assembly:', error);
+    return { data: null, error };
+  }
+}
+
 /**
  * PRODUCTOS ESCANEADOS
  */

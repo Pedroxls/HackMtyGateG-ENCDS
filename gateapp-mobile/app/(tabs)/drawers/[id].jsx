@@ -8,8 +8,13 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import { Dimensions } from 'react-native';
 import { COLORS } from '../../../src/constants/colors';
 import { processExpiryDateOCR } from '../../../src/services/ocrService';
-import { validateExpiryDate, formatExpiryDate } from '../../../src/utils/dateValidation';
-import { getDrawerById, saveScannedProduct } from '../../../src/services/supabaseService';
+import { validateExpiryDate, formatExpiryDate, parseISODateLocal } from '../../../src/utils/dateValidation';
+import {
+  getDrawerById,
+  saveScannedProduct,
+  startDrawerAssembly,
+  pauseDrawerAssembly
+} from '../../../src/services/supabaseService';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -73,6 +78,7 @@ export default function DrawerDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
   const [timerStarted, setTimerStarted] = useState(false);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [showScanner, setShowScanner] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [ocrResult, setOcrResult] = useState(null);
@@ -80,12 +86,50 @@ export default function DrawerDetailScreen() {
   const [drawerData, setDrawerData] = useState(null);
   const [loading, setLoading] = useState(true);
   const cameraRef = useRef(null);
+  const timerIntervalRef = useRef(null);
   const [permission, requestPermission] = useCameraPermissions();
 
   // Cargar datos del drawer desde Supabase
   useEffect(() => {
     loadDrawerData();
   }, [id]);
+
+  // Timer effect - se ejecuta cuando timerStarted cambia
+  useEffect(() => {
+    if (timerStarted) {
+      // Iniciar el timer
+      console.log('⏱️ Timer iniciado');
+      timerIntervalRef.current = setInterval(() => {
+        setElapsedSeconds((prev) => prev + 1);
+      }, 1000);
+    } else {
+      // Detener el timer
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = null;
+      }
+    }
+
+    // Cleanup al desmontar - PAUSAR el drawer
+    return () => {
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+      }
+
+      // Si el timer estaba corriendo, pausar y guardar en Supabase
+      if (timerStarted && elapsedSeconds > 0) {
+        console.log('⏸️ Pausando drawer al salir, tiempo:', elapsedSeconds);
+        pauseDrawerAssembly(id, elapsedSeconds);
+      }
+    };
+  }, [timerStarted, elapsedSeconds, id]);
+
+  // Formatear tiempo para mostrar MM:SS
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
 
   const loadDrawerData = async () => {
     try {
@@ -119,6 +163,9 @@ export default function DrawerDetailScreen() {
           estimatedTime: data.estimated_build_time_min
             ? `${data.estimated_build_time_min} min`
             : 'N/A',
+          assembly_started_at: data.assembly_started_at,
+          assembly_paused_at: data.assembly_paused_at,
+          total_assembly_time_sec: data.total_assembly_time_sec,
         },
         drawerNumber: data.drawer_number, // Guardar el número de drawer
         products: data.drawer_content?.map((content) => ({
@@ -129,13 +176,31 @@ export default function DrawerDetailScreen() {
           scanned: data.scanned_products?.filter(
             (sp) => sp.product_id === content.products.id
           ).length || 0,
-          requiresExpiry: content.products.expiration_days > 0,
+          requiresExpiry: content.products.expiration_days != null, // Si tiene fecha de expiración
           sku: content.products.sku,
         })) || [],
       };
 
       setDrawerData(transformedData);
       setProducts(transformedData.products);
+
+      // Cargar estado del timer si ya había iniciado
+      if (data.assembly_started_at && !data.assembly_paused_at) {
+        // El drawer está activo (no pausado)
+        console.log('⏱️ Drawer ya iniciado, restaurando timer');
+        setTimerStarted(true);
+        // Calcular tiempo ya transcurrido
+        const startTime = new Date(data.assembly_started_at).getTime();
+        const now = Date.now();
+        const previousSeconds = data.total_assembly_time_sec || 0;
+        const currentSessionSeconds = Math.floor((now - startTime) / 1000);
+        setElapsedSeconds(previousSeconds + currentSessionSeconds);
+      } else if (data.assembly_started_at && data.assembly_paused_at) {
+        // El drawer fue pausado
+        console.log('⏸️ Drawer pausado, restaurando tiempo guardado');
+        setElapsedSeconds(data.total_assembly_time_sec || 0);
+        setTimerStarted(false);
+      }
     } catch (error) {
       console.error('Error in loadDrawerData:', error);
       Alert.alert('Error', 'Error cargando datos del cajón');
@@ -194,13 +259,25 @@ export default function DrawerDetailScreen() {
     ? `D-${String(drawerData.drawerNumber).padStart(3, '0')}`
     : drawer.id.slice(0, 8);
 
-  const handleStartAssembly = () => {
+  const handleStartAssembly = async () => {
+    console.log('▶️ Iniciando/Continuando ensamblaje');
+
+    // Si es primera vez, reiniciar contador; si está pausado, continuar
+    const isFirstTime = !drawerData.drawer.assembly_started_at;
+
+    if (isFirstTime) {
+      setElapsedSeconds(0);
+    }
+
     setTimerStarted(true);
-    Alert.alert(
-      'Ensamblaje Iniciado',
-      'El timer ha comenzado. Comienza a escanear productos.',
-      [{ text: 'OK' }]
-    );
+
+    // Guardar en Supabase que inició
+    const { error } = await startDrawerAssembly(id);
+    if (error) {
+      console.error('❌ Error al iniciar drawer:', error);
+    } else {
+      console.log('✅ Drawer iniciado en Supabase');
+    }
   };
 
   const handleScanProduct = () => {
@@ -209,13 +286,25 @@ export default function DrawerDetailScreen() {
       if (!permission?.granted) {
         requestPermission();
       } else {
-        setShowScanner(true);
+        console.log('📷 Abriendo scanner para:', currentProduct.name);
+        // Limpiar estado anterior
         setOcrResult(null);
+        setProcessing(false);
+        // Abrir scanner
+        setShowScanner(true);
       }
     } else {
       // Escaneo directo sin verificar fecha
+      console.log('✅ Producto sin fecha de caducidad');
       handleProductScanned(null);
     }
+  };
+
+  const handleCloseScanner = () => {
+    console.log('❌ Cerrando scanner');
+    setShowScanner(false);
+    setOcrResult(null);
+    setProcessing(false);
   };
 
   const handleTakePicture = async () => {
@@ -266,11 +355,19 @@ export default function DrawerDetailScreen() {
       const result = await processExpiryDateOCR(imageUri);
 
       if (result.success && result.expiry_date) {
-        const validation = validateExpiryDate(new Date(result.expiry_date));
+        // Parsear fecha sin timezone para evitar cambios de día
+        const expiryDate = parseISODateLocal(result.expiry_date);
+        const validation = validateExpiryDate(expiryDate);
+
+        console.log('📅 Fecha parseada:', {
+          original: result.expiry_date,
+          parsed: expiryDate,
+          formatted: formatExpiryDate(expiryDate),
+        });
 
         setOcrResult({
           date: result.expiry_date,
-          formattedDate: formatExpiryDate(new Date(result.expiry_date)),
+          formattedDate: formatExpiryDate(expiryDate),
           validation,
           lotNumber: result.lot_number,
           confidence: result.confidence,
@@ -307,6 +404,8 @@ export default function DrawerDetailScreen() {
   const handleProductScanned = async (ocrData) => {
     if (!currentProduct) return;
 
+    console.log('💾 Guardando producto escaneado:', currentProduct.name);
+
     // Guardar en Supabase
     const { data, error } = await saveScannedProduct({
       drawerId: id,
@@ -318,7 +417,7 @@ export default function DrawerDetailScreen() {
     });
 
     if (error) {
-      console.error('Error saving scanned product:', error);
+      console.error('❌ Error saving scanned product:', error);
       Alert.alert('Error', 'No se pudo guardar el producto escaneado');
       return;
     }
@@ -334,14 +433,14 @@ export default function DrawerDetailScreen() {
       )
     );
 
-    setShowScanner(false);
-    setOcrResult(null);
+    // Cerrar scanner y limpiar estado
+    handleCloseScanner();
 
-    // Mostrar feedback de éxito
+    // Mostrar feedback de éxito breve
     Alert.alert(
       '✅ Producto Registrado',
-      `${currentProduct.name} escaneado correctamente`,
-      [{ text: 'OK' }]
+      `${currentProduct.name} escaneado correctamente\n${currentProduct.scanned + 1}/${currentProduct.required}`,
+      [{ text: 'Continuar' }]
     );
   };
 
@@ -363,7 +462,7 @@ export default function DrawerDetailScreen() {
           {timerStarted && (
             <View style={styles.timerBadge}>
               <Ionicons name="time" size={14} color={COLORS.textInverse} />
-              <Text style={styles.timerText}>4:23</Text>
+              <Text style={styles.timerText}>{formatTime(elapsedSeconds)}</Text>
             </View>
           )}
         </View>
@@ -503,9 +602,17 @@ export default function DrawerDetailScreen() {
 
         {/* Start Button */}
         {!timerStarted && (
-          <TouchableOpacity style={styles.startButton} onPress={handleStartAssembly}>
+          <TouchableOpacity
+            style={[
+              styles.startButton,
+              drawerData.drawer.assembly_started_at && styles.continueButton,
+            ]}
+            onPress={handleStartAssembly}
+          >
             <Ionicons name="play-circle" size={24} color={COLORS.textInverse} />
-            <Text style={styles.startButtonText}>INICIAR ENSAMBLAJE</Text>
+            <Text style={styles.startButtonText}>
+              {drawerData.drawer.assembly_started_at ? 'CONTINUAR ENSAMBLAJE' : 'INICIAR ENSAMBLAJE'}
+            </Text>
           </TouchableOpacity>
         )}
       </ScrollView>
@@ -518,7 +625,7 @@ export default function DrawerDetailScreen() {
               <SafeAreaView style={styles.cameraOverlay} edges={['top']}>
                 <View style={styles.scannerHeader}>
                   <TouchableOpacity
-                    onPress={() => setShowScanner(false)}
+                    onPress={handleCloseScanner}
                     style={styles.closeButton}
                   >
                     <Ionicons name="close" size={28} color={COLORS.textInverse} />
@@ -589,7 +696,7 @@ export default function DrawerDetailScreen() {
               {ocrResult.validation.status === 'expired' && (
                 <TouchableOpacity
                   style={styles.rejectButton}
-                  onPress={() => setShowScanner(false)}
+                  onPress={handleCloseScanner}
                 >
                   <Text style={styles.rejectButtonText}>Rechazar Producto</Text>
                 </TouchableOpacity>
@@ -638,11 +745,15 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 16,
     gap: 4,
+    minWidth: 80, // Ancho mínimo fijo para evitar que se ajuste
   },
   timerText: {
     fontSize: 14,
     fontWeight: 'bold',
     color: COLORS.textInverse,
+    fontVariant: ['tabular-nums'], // Números monoespaciados
+    minWidth: 42, // Ancho fijo para el texto del tiempo (MM:SS)
+    textAlign: 'center',
   },
   scrollView: {
     flex: 1,
@@ -820,6 +931,9 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
     borderRadius: 16,
     gap: 8,
+  },
+  continueButton: {
+    backgroundColor: COLORS.success, // Verde para continuar
   },
   startButtonText: {
     fontSize: 18,

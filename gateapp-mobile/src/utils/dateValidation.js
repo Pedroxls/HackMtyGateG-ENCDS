@@ -273,10 +273,40 @@ export function validateExpiryDate(expiryDate, warningDays = 7) {
 }
 
 /**
+ * Parsea una fecha ISO string sin timezone (YYYY-MM-DD) a Date local
+ * Evita problemas de timezone que pueden cambiar el día
+ */
+export function parseISODateLocal(dateString) {
+  if (!dateString) return null;
+
+  // Si ya es un objeto Date, retornarlo
+  if (dateString instanceof Date) return dateString;
+
+  // Parsear YYYY-MM-DD como fecha local (no UTC)
+  const parts = dateString.split('-');
+  if (parts.length === 3) {
+    const year = parseInt(parts[0]);
+    const month = parseInt(parts[1]) - 1; // Meses son 0-indexed
+    const day = parseInt(parts[2]);
+    return new Date(year, month, day);
+  }
+
+  // Fallback: usar el constructor normal
+  return new Date(dateString);
+}
+
+/**
  * Formatea una fecha para mostrar
  */
 export function formatExpiryDate(date) {
-  if (!date || !(date instanceof Date)) return '';
+  if (!date) return '';
+
+  // Si es string, parsearlo primero
+  if (typeof date === 'string') {
+    date = parseISODateLocal(date);
+  }
+
+  if (!(date instanceof Date)) return '';
 
   const month = (date.getMonth() + 1).toString().padStart(2, '0');
   const year = date.getFullYear();
